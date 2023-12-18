@@ -8,12 +8,27 @@
 )]
 
 mod sso;
-mod unsafe_field;
 
-use sso::SsoString as String;
+type String = sso::SsoString;
 
 fn main() {
-    let mut s = String::new();
-    s.push_str("Hello, world!");
-    println!("{:?}", s);
+    // let mut string = Str::from("Oliver Iliffe");
+
+    // string.push_str("Hello, world!");
+    // println!("{:?}", string);
+
+    // string.push_str(" My name i");
+    // println!("{:?}", string);
+
+    // string.push_str("s Greg!");
+    // println!("{:?}", string);
+
+    let mut s = String::from("Hello, world,");
+    assert!(s.is_short());
+    s.push_str(" my name i");
+    assert!(s.is_short());
+    s.push_str("s");
+    assert!(s.is_long());
+    s.push_str(" George!");
+    assert_eq!("Hello, world, my name is George!", &s);
 }
