@@ -1,5 +1,3 @@
-# THIS LIB PRODUCES UB AND IS UNFINISHED
-
 # `SsoString` in Rust
 
 Small string optimisation is done only for strings of length 23 or less. 
@@ -8,6 +6,16 @@ This crate defines a single non-conditional export `String` which is either `sso
 `std::string::String` depending on your architecture.
 
 Small string optimisation is only available on `#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`.
+
+# Can I use this?
+
+This is an imaginary conversation I am having with a person who will never exist, but I would recommend strongly that 
+you do not use this, unless perhaps you can guarantee that the exported type is actually `std::string::String` hehe.
+
+But seriously, although tested a little, it's not rigorously safe yet. Once I add debug assertions about unsafe 
+preconditions, I'll be more confident that it is safe to use.
+
+For now, everything *appears* to be safe, but nothing is as it seems in the land of `unsafe`! 
 
 ## Usage
 

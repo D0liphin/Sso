@@ -7,27 +7,28 @@ type LongString = super::LongString;
 fn test_sso_string_upgrades() {
     let mut s = String::from("Hello, world,");
     assert!(s.is_short());
-    s.push_str(" my name i");
+    s += " my name i";
     assert!(s.is_short());
-    s.push_str("s");
+    assert_eq!(s.len(), ShortString::MAX_CAPACITY);
+    s += "s";
     assert!(s.is_long());
     assert_eq!(&s, "Hello, world, my name is");
-    s.push_str(" George!");
+    s += " George!";
     assert_eq!("Hello, world, my name is George!", &s);
 }
 
 #[test]
 fn short_string_64_fills_to_max_capacity() {
     assert_eq!(ShortString::MAX_CAPACITY, 23);
-    
-    let mut s = ShortString::new(); 
+
+    let mut s = ShortString::new();
     assert_eq!(s.len(), 0);
 
     let tail = "Hello, world!";
     assert_eq!(tail.len(), 13);
     s.push_str(tail);
     assert_eq!(s.len(), 13);
-    
+
     let tail = " It's hot.";
     assert_eq!(tail.len(), 10);
     s.push_str(tail);
@@ -40,15 +41,16 @@ fn short_string_64_fills_to_max_capacity() {
 }
 
 #[test]
-fn short_string_64_upgrades_correctly() {  
+fn short_string_64_upgrades_correctly() {
     let mut s = ShortString::new();
     s.push_str("Hello, world!");
 
     for capacity in (0..32).step_by(8) {
-        let ls = s.into_long(capacity);
+        let mut ls = s.into_long(capacity);
         assert_eq!(ls.len(), s.len());
         assert_eq!(ls.as_str(), s.as_str());
         assert!(ls.capacity() >= ShortString::MAX_CAPACITY + capacity);
+        ls.free();
     }
 }
 
@@ -73,34 +75,38 @@ fn long_string_extends_within_capacity() {
     assert_eq!(s.as_str(), &correct_s);
     assert_eq!(s.remaining_capacity(), 0);
     assert_eq!(s.capacity(), capacity);
-}
 
+    s.free();
+}
 
 #[test]
 fn long_string_can_clone_with_additional_capacity() {
     let mut s = LongString::with_capacity(16);
     s.push_str("Hello, world!");
-    let cloned = s.clone_with_additional_capacity(16);
+    let mut cloned = s.clone_with_additional_capacity(16);
     assert_eq!(s.len(), cloned.len());
     assert_eq!(s.as_str(), cloned.as_str());
     assert!(cloned.capacity() >= s.capacity() + 16);
+    s.free();
+    cloned.free();
 }
 
-// #[test]
-// fn long_string_reallocs_automatically() {
-//     let mut s = LongString::with_capacity(16);
-//     let initial_capacity = s.capacity();
-//     let tail = ".".repeat(s.remaining_capacity());
-//     s.push_str(&tail);
-//     let len = s.len();
-//     assert_eq!(s.remaining_capacity(), 0);
-//     assert_eq!(s.len(), tail.len());
+#[test]
+fn long_string_reallocs_automatically() {
+    let mut s = LongString::with_capacity(16);
+    let initial_capacity = s.capacity();
+    let tail = ".".repeat(s.remaining_capacity());
+    s.push_str(&tail);
+    let len = s.len();
+    assert_eq!(s.remaining_capacity(), 0);
+    assert_eq!(s.len(), tail.len());
 
-//     s.push_str(".");
-//     assert!(s.capacity() > initial_capacity);
-//     assert_eq!(len, s.len() + 1);
+    s.push_str(".");
+    assert!(s.capacity() > initial_capacity);
+    assert_eq!(len + 1, s.len());
 
-//     let mut correct_s = StdString::from(&tail);
-//     correct_s.push_str(".");
-//     assert_eq!(s.as_str(), &correct_s);
-// }
+    let mut correct_s = StdString::from(&tail);
+    correct_s.push_str(".");
+    assert_eq!(s.as_str(), &correct_s);
+    s.free();
+}

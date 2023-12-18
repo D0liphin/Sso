@@ -24,21 +24,21 @@ mod tests;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-struct RawBuf<T> {
+pub struct RawBuf<T> {
     data: NonNull<T>,
 }
 
 #[derive(Debug)]
-struct InvalidArgumentError;
+pub struct InvalidArgumentError;
 
 impl<T> RawBuf<T> {
-    const fn dangling() -> Self {
+    pub const fn dangling() -> Self {
         Self {
             data: NonNull::dangling(),
         }
     }
 
-    fn new_layout(capacity: usize) -> (Layout, usize) {
+    pub fn new_layout(capacity: usize) -> (Layout, usize) {
         Layout::new::<T>()
             .repeat(capacity)
             .expect("capacity should be valid")
@@ -65,9 +65,22 @@ impl<T> RawBuf<T> {
     /// - `len` must be the exact length of the allocated object, using the value returned
     /// with `RawBuf::new() -> (_, len)` will guarantee safety.
     /// - this must be the first time that you call this function
-    pub unsafe fn dealloc(self, len: usize) -> Result<Self, InvalidArgumentError> {
+    pub unsafe fn dealloc(mut self, len: usize) -> Result<Self, InvalidArgumentError> {
         Global.deallocate(self.data.cast(), Self::new_layout(len).0);
+        // we need to self.data explicitly dangle, so that general slice functions are 
+        // perceived as safe by Miri. If we allocate, and deallocate, Miri has a tag for the
+        // region and will think slice_from_raw_parts is valid.
+        self.data = NonNull::dangling();
         Ok(self)
+    }
+
+    /// Returns the head of this buffer as a raw pointer, this pointer is guaranteed to be non-null
+    /// aligned, and point to a valid allocation of `[T]`. The number of elements is the same as 
+    /// the second element that is returned by `RawBuf::new`
+    /// 
+    /// [`RawBuf::new`]: sso::RawBuf::new
+    pub const fn as_ptr(&self) -> *mut T {
+        self.data.as_ptr()
     }
 }
 
@@ -377,18 +390,23 @@ impl LongString {
 
     /// realloc to fit at least `remaining_capacity` more bytes
     pub fn realloc(&mut self, remaining_capacity: usize) {
-        *self = self.clone_with_additional_capacity(cmp::max(
+        let new = self.clone_with_additional_capacity(cmp::max(
             remaining_capacity - self.remaining_capacity(),
             self.capacity() * 2,
         ));
+        self.free();
+        *self = new;
     }
 
     /// Push a `str` to this string, allocating if needed. Note that the current realloc schema
     /// might only allocate exactly enough extra space for `s`
     pub fn push_str(&mut self, s: &str) {
+        println!("{self:?}.push_str({s:?})");
         let str_len = s.as_bytes().len();
         if self.remaining_capacity() < s.len() {
             self.realloc(str_len);
+            println!("... not enough space, realloc()");
+            println!("    -> {self:?}");
         }
 
         unsafe {
@@ -401,11 +419,12 @@ impl LongString {
             ptr::copy_nonoverlapping(
                 s.as_bytes().as_ptr(),
                 self.next_ptr().as_ptr(),
-                self.remaining_capacity(),
+                str_len,
             );
             // SAFETY: just copied a valid str of str_len into the section starting at len
             self.set_len(self.len() + str_len);
         }
+        println!("    -> {self:?}");
     }
 
     /// `len` is truncated to a 63-bit number.
