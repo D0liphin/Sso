@@ -9,9 +9,10 @@ use std::{
     str::{CharIndices, Chars},
 };
 
-mod unsafe_field;
+mod benches;
+pub mod unsafe_field;
 
-use unsafe_field::UnsafeWrite;
+use unsafe_field::{UnsafeAssign, UnsafeField};
 
 #[cfg(test)]
 mod tests;
@@ -86,7 +87,7 @@ struct ShortString64 {
     /// - the last bit must always be `1`
     /// when shifted by >> 1:
     /// - `len` must be less than or equal to `ShortString64::MAX_CAPACITY`
-    len_and_flag: UnsafeWrite<u8, 0>,
+    len_and_flag: UnsafeField<u8, 0>,
     buf: [u8; Self::MAX_CAPACITY],
 }
 
@@ -94,10 +95,10 @@ impl ShortString64 {
     const MAX_CAPACITY: usize = 23;
 
     /// Constructs and empty ShortString64
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             // SAFETY: 1 is always a valid value
-            len_and_flag: unsafe { UnsafeWrite::new(1) }, // 0, 1
+            len_and_flag: unsafe { UnsafeField::new(1) }, // 0, 1
             buf: [0; 23],
         }
     }
@@ -199,17 +200,17 @@ struct LongString {
     /// - `len <= capacity`
     /// - `buf[0..len]` is always a valid SharedReadWrite slice of valid u8, if the string is not
     ///    borrowed, otherwise the permissions become that of the borrow
-    len: UnsafeWrite<usize, 0>,
+    len: UnsafeField<usize, 0>,
     /// SAFETY:
     /// buf and capacity are linked, so we can only modify either if we update the entire struct
     /// simultaneously. As a result, we cannot implement Drop. The size of the allocated object
     /// starting at buf.data is always exactly capacity bytes long.
-    buf: UnsafeWrite<RawBuf<u8>, 1>,
+    buf: UnsafeField<RawBuf<u8>, 1>,
     /// SAFETY:
     /// buf and capacity are linked, so we can only modify either if we update the entire struct
     /// simultaneously. As a result, we cannot implement Drop. The size of the allocated object
     /// starting at buf.data is always exactly capacity bytes long.
-    capacity: UnsafeWrite<usize, 2>,
+    capacity: UnsafeField<usize, 2>,
 }
 
 impl LongString {
@@ -221,11 +222,11 @@ impl LongString {
         unsafe {
             Self {
                 // SAFETY: a value of `0` is always valid
-                len: UnsafeWrite::new(0),
+                len: UnsafeField::new(0),
                 // SAFETY: by definition of RawBuf::new, capacity and buf match, so both these
                 // constructions are safe
-                capacity: UnsafeWrite::new(capacity),
-                buf: UnsafeWrite::new(buf),
+                capacity: UnsafeField::new(capacity),
+                buf: UnsafeField::new(buf),
             }
         }
     }
@@ -429,11 +430,11 @@ impl LongString {
         *self = unsafe {
             Self {
                 // SAFETY: 0 always satisfies len's invaraints
-                len: UnsafeWrite::new(0),
+                len: UnsafeField::new(0),
                 // SAFETY: the buffer is dangling and the capacity is 0, which is a valid
-                // state for LongString
-                capacity: UnsafeWrite::new(0),
-                buf: UnsafeWrite::new(
+                // state for LongString, these two fields have a linked invariant
+                capacity: UnsafeField::new(0),
+                buf: UnsafeField::new(
                     self.buf
                         .own()
                         // SAFETY: capacity is the exact size of the buffer
