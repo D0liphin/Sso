@@ -401,12 +401,9 @@ impl LongString {
     /// Push a `str` to this string, allocating if needed. Note that the current realloc schema
     /// might only allocate exactly enough extra space for `s`
     pub fn push_str(&mut self, s: &str) {
-        println!("{self:?}.push_str({s:?})");
         let str_len = s.as_bytes().len();
         if self.remaining_capacity() < s.len() {
             self.realloc(str_len);
-            println!("... not enough space, realloc()");
-            println!("    -> {self:?}");
         }
 
         unsafe {
@@ -424,7 +421,6 @@ impl LongString {
             // SAFETY: just copied a valid str of str_len into the section starting at len
             self.set_len(self.len() + str_len);
         }
-        println!("    -> {self:?}");
     }
 
     /// `len` is truncated to a 63-bit number.
