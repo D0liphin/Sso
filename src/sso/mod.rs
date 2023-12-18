@@ -2,7 +2,7 @@ use std::{
     alloc::{Allocator, Global, Layout},
     cmp, fmt,
     mem::ManuallyDrop,
-    ops::Deref,
+    ops::{self, Deref},
     ptr::{self, NonNull},
     slice,
     str::{CharIndices, Chars},
@@ -459,8 +459,7 @@ enum TaggedSsoString64<'a> {
     Long(&'a LongString),
 }
 
-#[cfg(target_endian = "little")]
-#[cfg(target_pointer_width = "64")]
+#[cfg(all(target_endian = "little", target_pointer_width = "64"))]
 #[repr(C)]
 pub union SsoString {
     short: ManuallyDrop<ShortString64>,
@@ -615,3 +614,24 @@ impl fmt::Debug for SsoString {
         }
     }
 }
+
+impl ops::AddAssign<&str> for SsoString {
+    fn add_assign(&mut self, rhs: &str) {
+        self.push_str(rhs);
+    }
+}
+
+impl ops::Add<&str> for SsoString {
+    type Output = Self;
+
+    fn add(mut self, rhs: &str) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+
+#[cfg(all(target_endian = "little", target_pointer_width = "64"))]
+type String = SsoString;
+
+#[cfg(all(not(target_endian = "little"), not(target_pointer_width = "64")))]
+type String = std::string::String;
