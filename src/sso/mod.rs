@@ -631,7 +631,7 @@ impl ops::Add<&str> for SsoString {
 }
 
 #[cfg(all(target_endian = "little", target_pointer_width = "64"))]
-type String = SsoString;
+pub type String = SsoString;
 
 #[cfg(all(not(target_endian = "little"), not(target_pointer_width = "64")))]
-type String = std::string::String;
+pub type String = std::string::String;
