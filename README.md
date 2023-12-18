@@ -1,3 +1,5 @@
+# THIS LIB PRODUCES UB AND IS UNFINISHED
+
 # `SsoString` in Rust
 
 Small string optimisation is done only for strings of length 23 or less. 
