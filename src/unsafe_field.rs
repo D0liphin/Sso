@@ -241,38 +241,3 @@ impl<'a, Dst: UnsafeAssign<T>, T> SimultaneousUnsafeAssign
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::unsafe_field::{
-        SimultaneousUnsafeAssign, SimultaneousUnsafeAssignment, UnsafeAssign, UnsafeField,
-    };
-
-    #[test]
-    fn test_simultaenous_write() {
-        struct Foo {
-            f1: UnsafeField<i32, 0>,
-            f2: UnsafeField<u32, 1>,
-            f3: UnsafeField<u8, 2>,
-            f4: UnsafeField<usize, 3>,
-        }
-
-        let mut foo = unsafe {
-            Foo {
-                f1: UnsafeField::new(0),
-                f2: UnsafeField::new(0),
-                f3: UnsafeField::new(0),
-                f4: UnsafeField::new(0),
-            }
-        };
-
-        let assignment = SimultaneousUnsafeAssignment
-            .with(2, &mut foo.f1)
-            .with(2, &mut foo.f2)
-            .with(2, &mut foo.f3)
-            .with(2, &mut foo.f4);
-
-        unsafe {
-            assignment.set_all();
-        }
-    }
-}

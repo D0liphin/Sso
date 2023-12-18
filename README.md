@@ -119,7 +119,8 @@ contract, but we could not define it as a function *without* a safety contract, 
 unsafe fn deref<T>(*const T) -> T;
 ```
 
-There are ways we could restrict `T`, such that this operation would be valid.
+There are ways we could restrict `T`, such that this operation would be valid, but that would be 
+a different operation.
 
 Basically all compiler intrinsic unsafe functions are "axiomatically unsafe". For example, 
 `std::intrinsics::offset<Ptr, Delta>(Ptr, Delta)` as on operation cannot be defined without a 
