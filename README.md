@@ -27,5 +27,32 @@ when they might actually cause UB. Basically, trying to make `unsafe` code reall
 That's why all my code has `# Safety` contracts and `SAFETY:` contract clearances at every `unsafe` call-site 
 (I think).
 
-That's why I use `len: UnsafeWrite<usize, 0>`. So that I cannot accidentally set the length to an invalid value 
+It's also why I use `len: UnsafeWrite<usize, 0>`. So that I cannot accidentally set the length to an invalid value 
 without using `unsafe`, which reminds me to clear the safety contract i might be violating.
+
+And why I can't `impl Drop`, because otherwise a semantically simultaneous write (not realy true, but it's good 
+enough) is impossible for `capacity` and `buf`. E.g. this code would become impossible (I need to write both 
+`capacity` and `buf` 'at the same time', so that `LongString` is never invalid.
+
+```rs
+/// free the buffer of this string, setting the `len` and `capacity` to `0`
+pub fn free(&mut self) {
+    let capacity = self.capacity();
+    *self = unsafe {
+        Self {
+            // SAFETY: 0 always satisfies len's invaraints
+            len: UnsafeWrite::new(0),
+            // SAFETY: the buffer is dangling and the capacity is 0, which is a valid
+            // state for LongString
+            capacity: UnsafeWrite::new(0),
+            buf: UnsafeWrite::new(
+                self.buf
+                    .own()
+                    // SAFETY: capacity is the exact size of the buffer
+                    .dealloc(capacity)
+                    .expect("should be the exact capacity"),
+            ),
+        }
+    };
+}
+```
