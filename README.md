@@ -172,7 +172,8 @@ println!({n:?});
 We could structure the code differently and check if we invalidated the pointer every single time 
 we want to 'use' it. However, the point of this document is to prove that this kind of safety
 contract is *never* (well, almost never) required. We can do everything at what I call
-"item-scope" (with the addition of `unsafe` fields).
+"item-scope" (with the addition of `unsafe` fields, or the the allowance of a few exceptions to
+the rule, that we can provide in a library).
 
 ## What is Item-scope?
 
