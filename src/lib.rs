@@ -1,10 +1,4 @@
-#![feature(
-    vec_push_within_capacity,
-    allocator_api,
-    alloc_layout_extra,
-    slice_ptr_get,
-    maybe_uninit_uninit_array_transpose
-)]
+#![feature(allocator_api, alloc_layout_extra, slice_ptr_get)]
 use std::{
     alloc::{Allocator, Global, Layout},
     cmp, fmt,
@@ -67,7 +61,7 @@ impl<T> RawBuf<T> {
     /// - this must be the first time that you call this function
     pub unsafe fn dealloc(mut self, len: usize) -> Result<Self, InvalidArgumentError> {
         Global.deallocate(self.data.cast(), Self::new_layout(len).0);
-        // we need to self.data explicitly dangle, so that general slice functions are 
+        // we need to self.data explicitly dangle, so that general slice functions are
         // perceived as safe by Miri. If we allocate, and deallocate, Miri has a tag for the
         // region and will think slice_from_raw_parts is valid.
         self.data = NonNull::dangling();
@@ -75,9 +69,9 @@ impl<T> RawBuf<T> {
     }
 
     /// Returns the head of this buffer as a raw pointer, this pointer is guaranteed to be non-null
-    /// aligned, and point to a valid allocation of `[T]`. The number of elements is the same as 
+    /// aligned, and point to a valid allocation of `[T]`. The number of elements is the same as
     /// the second element that is returned by `RawBuf::new`
-    /// 
+    ///
     /// [`RawBuf::new`]: sso::RawBuf::new
     pub const fn as_ptr(&self) -> *mut T {
         self.data.as_ptr()
@@ -413,11 +407,7 @@ impl LongString {
             // - both dst and src are cast from aligned pointers
             // - the regions may not overlap, as `&mut` takes unique ownership of the buffer, thus
             //   `&str` must point somewhere else
-            ptr::copy_nonoverlapping(
-                s.as_bytes().as_ptr(),
-                self.next_ptr().as_ptr(),
-                str_len,
-            );
+            ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), self.next_ptr().as_ptr(), str_len);
             // SAFETY: just copied a valid str of str_len into the section starting at len
             self.set_len(self.len() + str_len);
         }
