@@ -5,7 +5,7 @@ Small string optimisation is done only for strings of length 23 or less.
 This crate defines a single non-conditional export `String` which is either `sso::SsoString`, or 
 `std::string::String` depending on your architecture.
 
-Smal string optimisation is only available on `#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`.
+Small string optimisation is only available on `#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`.
 
 ## Usage
 
