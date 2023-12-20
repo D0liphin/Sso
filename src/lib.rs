@@ -86,6 +86,7 @@ impl<T> RawBuf<T> {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+#[repr(align(8))]
 struct ShortString64 {
     /// # Safety
     /// - `1` is always a valid value
@@ -147,23 +148,26 @@ impl ShortString64 {
         Self::MAX_CAPACITY - self.len()
     }
 
+    /// # Safety
+    /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
+    pub unsafe fn push_str_unchecked(&mut self, s: &str) {
+        let mut new_buf = *self.clone().buf.get(); // in the hopes that we copy three qwords
+        new_buf.copy_from_slice(self.buf.get());
+        // SAFETY:
+        // - new_buf[0..len] is a copy of an old, valid buffer
+        self.buf.set(new_buf);
+        // SAFETY:
+        // - len is at most self.len() + self.remaining_capacity(), which is by definition
+        //   Self::MAX_CAPACITY
+        // - self.buf[len..len + s.len()] has just been initialised as valid utf8 from a str
+        self.set_len(self.len() + s.len());
+    }
+
     pub fn push_str(&mut self, s: &str) {
-        let count = cmp::min(s.len(), self.remaining_capacity());
-        let mut i = self.len();
-        let mut new_buf = *self.buf.get();
-        for &b in &s.as_bytes()[0..count] {
-            new_buf[i] = b;
-            i += 1;
-        }
+        let s_len = cmp::min(s.len(), self.remaining_capacity());
+        // SAFETY: we truncate s, to at most self.remaining_capacity()
         unsafe {
-            // SAFETY:
-            // - buf[0..len] is a copy of an old, valid buffer
-            self.buf.set(new_buf);
-            // SAFETY:
-            // - len is at most self.len() + self.remaining_capacity(), which is by definition
-            //   Self::MAX_CAPACITY
-            // - self.buf[0..len] has just been initialised as valid utf8 from a str
-            self.set_len(self.len() + count);
+            self.push_str_unchecked(&s[0..s_len]);
         }
     }
 
@@ -177,7 +181,11 @@ impl ShortString64 {
     /// `Self::MAX_CAPACITY + additional_capacity`.
     pub fn into_long(&self, additional_capacity: usize) -> LongString {
         let mut long = LongString::with_capacity(Self::MAX_CAPACITY + additional_capacity);
-        long.copy_from(self.as_str());
+        // SAFETY: long has at least Self::MAX_CAPACITY space, so it can fit any string this
+        // short string contains
+        unsafe {
+            long.push_str_unchecked(self.as_str());
+        }
         long
     }
 
@@ -211,7 +219,7 @@ impl fmt::Debug for ShortString64 {
 
 // SAFETY: all structs contain different integers
 #[repr(C)]
-struct LongString {
+pub struct LongString {
     /// # Safety
     /// - `0` is always a valid value
     /// - the last bit is always 0
@@ -265,31 +273,6 @@ impl LongString {
         //   to self
         // - allocations are no larger than isize::MAX, so len can never be greater than that
         unsafe { slice::from_raw_parts(self.buf().data.as_ptr(), self.len()) }
-    }
-
-    /// Replaces the contents of the buffer with `s`, so that `&self == s[0..self.len()]`.
-    ///
-    /// Note that `s` is truncated to fit inside a buffer of size `self.capacity()`, you should
-    /// check first if `s` can fit, if you would like to guarantee that `&self == s`
-    pub fn copy_from(&mut self, s: &str) {
-        // This doesn't violate the function's description, as this simply means that s cannot
-        // fit in the buffer at all, hence the contract &self == s[0..self.len()] is fulfilled in
-        // the form "" == s[0..0]
-        let dst = self.get_sized_buf();
-        let count = cmp::min(s.len(), self.capacity());
-        unsafe {
-            // SAFETY:
-            // - src is valid for reads, since count <= s.len()
-            // - dst os valid for writes of count bytes, since count <= s.capacity()
-            // - both dst and src are cast from aligned pointers
-            // - the regions may not overlap, as `&mut` takes unique ownership of the bufer, thus
-            //   `&str` must point somewhere else
-            ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), dst.as_mut_ptr(), count);
-            // SAFETY:
-            // - we just initialised count bytes starting at 0 with a valid str
-            // - count is at most capacity, so len <= capacity
-            self.set_len(count);
-        }
     }
 
     /// Returns a sized buffer representing the whole buffer of the string, can be safely written to
@@ -398,7 +381,11 @@ impl LongString {
     /// clones this string, with at least `additional_capacity` extra space
     pub fn clone_with_additional_capacity(&self, additional_capacity: usize) -> Self {
         let mut new = Self::with_capacity(self.capacity() + additional_capacity);
-        new.copy_from(self.as_str());
+        // SAFETY: new has at least self.capacity() space, so it can allocate anything that
+        // self holds
+        unsafe {
+            new.push_str_unchecked(self.as_str());
+        }
         new
     }
 
@@ -412,25 +399,31 @@ impl LongString {
         *self = new;
     }
 
+    /// # Safety
+    /// - `self.remaining_capacity()`` must be at least `s.len()`
+    pub unsafe fn push_str_unchecked(&mut self, s: &str) {
+        // SAFETY:
+        // - src (s) is valid for reads of s.len() by slice definition
+        // - dst is valid for writes of count s.len(), since remaining_capacity >= s.len()
+        //   and self.next_ptr() points to a buffer of size remaining_capacity
+        // - both dst and src are cast from aligned pointers
+        // - the regions may not overlap, as `&mut` uniquely borrows the the buffer, thus
+        //   `&str` must point somewhere else
+        ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), self.next_ptr().as_ptr(), s.len());
+        // SAFETY: just copied a valid str of s.len() into the section starting at len
+        self.set_len(self.len() + s.len());
+    }
+
     /// Push a `str` to this string, allocating if needed. Note that the current realloc schema
     /// might only allocate exactly enough extra space for `s`
     pub fn push_str(&mut self, s: &str) {
-        let str_len = s.as_bytes().len();
         if self.remaining_capacity() < s.len() {
-            self.realloc(str_len);
+            self.realloc(s.len());
         }
 
-        unsafe {
-            // SAFETY:
-            // - src (s) is valid for reads of str_len by slice definition
-            // - dst is valid for writes of count str_len, since remaining_capacity >= str_len
-            // - both dst and src are cast from aligned pointers
-            // - the regions may not overlap, as `&mut` takes unique ownership of the buffer, thus
-            //   `&str` must point somewhere else
-            ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), self.next_ptr().as_ptr(), str_len);
-            // SAFETY: just copied a valid str of str_len into the section starting at len
-            self.set_len(self.len() + str_len);
-        }
+        // SAFETY: if remaining capacity is less than s.len(), we realloc to fit at least s.len()
+        // therefore, the remaining capacity is at least s.len()
+        unsafe { self.push_str_unchecked(s) }
     }
 
     /// Push a `char` to this string, allocating if needed. Like [`LongString::push_str`] this might
@@ -493,6 +486,16 @@ impl LongString {
             // SAFETY: passed to caller
             capacity: UnsafeField::new(capacity),
         }
+    }
+
+    pub fn from_str(s: &str) -> Self {
+        let mut long = Self::with_capacity(s.len());
+        // SAFETY: we allocate long with_capacity(s.len()). It is empty, therefore it must have
+        // remaining_capacity == capacity == s.len()
+        unsafe {
+            long.push_str_unchecked(s);
+        }
+        long
     }
 }
 
@@ -606,7 +609,7 @@ impl SsoString {
         pub fn as_bytes(&self) -> &[u8];
     }
 
-    // as_mut_str
+    todo_impl!(pub fn as_mut_str(&mut self) -> &mut str);
 
     never_impl!(pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>);
 
@@ -689,8 +692,11 @@ impl SsoString {
     pub fn push_str(&mut self, s: &str) {
         match self.tagged_mut() {
             TaggedSsoString64Mut::Short(short) => {
-                if short.remaining_capacity() >= s.len() {
-                    short.push_str(s);
+                if s.len() <= short.remaining_capacity() {
+                    // SAFETY: exact bounds check just completed
+                    unsafe {
+                        short.push_str_unchecked(s);
+                    }
                 } else {
                     let mut long = ManuallyDrop::new(short.into_long(s.len()));
                     long.push_str(s);
@@ -723,6 +729,23 @@ impl SsoString {
         }
     }
 
+    duck_impl! { 
+        pub unsafe fn set_len(&mut self, len: usize); 
+    }
+
+    duck_impl! {
+        pub fn pop(&mut self as duck) -> Option<char> {
+            let ch = duck.as_str().chars().rev().next()?;
+            // SAFETY: will always still be valid utf8, as we are 'removing' a correctly sized utf8
+            // byte sequence from the end of this string. For added assurance that this is safe,
+            // this is basically exactly the same code as the std library impementation.
+            unsafe {
+                duck.set_len(duck.len() - ch.len_utf8());
+            }
+            Some(ch)
+        }
+    }
+
     /// This doesn't actually reserve exactly `additional` extra bytes, it might allocate a few
     /// extra, just because of the implementation of `Global`.
     pub fn reserve_exact(&mut self, additional: usize) {
@@ -742,8 +765,11 @@ impl SsoString {
     /// Retains only the characters specified by the predicate.
     ///
     /// # TODO
-    /// This isn't really that good of an implementaion at the moment. It aggressively allocates
-    /// as much as it could possibly need, then reallocates at the end.
+    ///
+    /// This is a bad implementation of a simple function, it creates an entirely new string, it
+    /// doesn't require `&mut`. The better version would be easier to implement with `as_mut_str`.
+    ///
+    /// I don't think I'm going to bother with this any time soon.
     pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(char) -> bool,
@@ -767,6 +793,7 @@ impl SsoString {
                 duck_body!(short, f)
             }
         }
+        *self = result;
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
@@ -781,9 +808,57 @@ impl SsoString {
         }
     }
 
-    todo_impl!(pub fn shrink_to(&mut self, _min_capacity: usize));
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        match self.tagged_mut() {
+            TaggedSsoString64Mut::Long(old) => {
+                let min_capacity = cmp::max(min_capacity, old.len());
+                if min_capacity <= ShortString64::MAX_CAPACITY {
+                    let mut short = ShortString64::new();
+                    // SAFETY:
+                    // 1. short is empty, therefore remaining_capacity == MAX_CAPACITY
+                    // 2. old.len() <= min_capacity is true (cmp::max)
+                    // 3. min_capacity <= MAX_CAPACITY is true (if statement)
+                    // - therefore old.len() <= short.remaining_capacity() because of the following
+                    //   derivation:
+                    // -> simplifies... old.len() <= MAX_CAPACITY (1)
+                    // -> given... old.len() <= min_capacity <= MAX_CAPACITY (2, 3)
+                    // -> old.len() <= MAX_CAPACITY == true
+                    unsafe {
+                        short.push_str_unchecked(old.as_str());
+                    }
+                    old.free();
+                    *self = SsoString {
+                        short: ManuallyDrop::new(short),
+                    };
+                } else {
+                    let mut long = LongString::with_capacity(min_capacity);
+                    // SAFETY:
+                    // - min_capacity >= old.len(), therefore old.len() <= min_capacity
+                    // - we have allocated at least min_capacity for long, which is empty
+                    // - therefore old.as_str() can be pushed
+                    unsafe {
+                        long.push_str_unchecked(old.as_str());
+                    }
+                    old.free();
+                    *self = SsoString {
+                        long: ManuallyDrop::new(long),
+                    };
+                }
+            }
+            TaggedSsoString64Mut::Short(..) => {
+                // cannot shrink capacity any further
+            }
+        }
+    }
 
-    todo_impl!(pub fn shrink_to_fit(&mut self));
+    /// This is currently just an alias for `self.shrink_to(self.len())`, it doesn't avoid any
+    /// branches just because it's always valid
+    ///
+    /// # TODO
+    /// Implement this better
+    pub fn shrink_to_fit(&mut self) {
+        self.shrink_to(self.len());
+    }
 
     todo_impl!(pub fn split_off(&mut self, _at: usize) -> String);
 
@@ -792,7 +867,7 @@ impl SsoString {
     todo_impl!(pub fn try_reserve(&mut self, _additional: usize) -> Result<(), TryReserveError>);
 
     todo_impl! {
-        pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError>;
+        pub fn try_reserve_exact(&mut self, _additional: usize) -> Result<(), TryReserveError>;
     }
 }
 
