@@ -141,7 +141,7 @@ where
 /// # Safety
 ///
 /// - ensure that all invariants are upheld after all assignments are complete
-/// - you must not rely on the ordering of the assignments, that is, the end state should
+/// - you must not rely on the ordering of the assignments, that is, the Unit state should
 ///   be the same no matter the order of the assignments. This should be trivially verifiable,
 ///   since I'm pretty sure it's impossible. Just putting it in here in case someon can find
 ///   a way of doing this.
@@ -149,7 +149,7 @@ where
 /// # Implementation Notes
 ///
 /// This is possible to implement without storing references to the fields, but I don't think it
-/// should matter in the end. This is probably optimised to the same thing? Not sure though.
+/// should matter in the Unit. This is probably optimised to the same thing? Not sure though.
 /// I don't think it matters that much.
 ///
 /// There's probably some kind of way of doing this with pure functions that inlines functions
@@ -240,4 +240,3 @@ impl<'a, Dst: UnsafeAssign<T>, T> SimultaneousUnsafeAssign
         self.field.set(self.value);
     }
 }
-

@@ -1,15 +1,20 @@
 #![feature(allocator_api, alloc_layout_extra, slice_ptr_get)]
 use std::{
     alloc::{Allocator, Global, Layout},
-    cmp, fmt,
-    mem::ManuallyDrop,
+    borrow::{Borrow, Cow},
+    cmp,
+    collections::TryReserveError,
+    fmt,
+    mem::{self, ManuallyDrop},
+    ops::RangeBounds,
     ops::{self, Deref},
     ptr::{self, NonNull},
     slice,
-    str::{CharIndices, Chars},
+    string::{Drain, FromUtf16Error, FromUtf8Error},
 };
 
 mod benches;
+mod impl_macros;
 pub mod unsafe_field;
 
 use unsafe_field::{UnsafeAssign, UnsafeField};
@@ -88,7 +93,9 @@ struct ShortString64 {
     /// when shifted by >> 1:
     /// - `len` must be less than or equal to `ShortString64::MAX_CAPACITY`
     len_and_flag: UnsafeField<u8, 0>,
-    buf: [u8; Self::MAX_CAPACITY],
+    /// # Safety
+    /// - Must always be valid utf8
+    buf: UnsafeField<[u8; Self::MAX_CAPACITY], 1>,
 }
 
 impl ShortString64 {
@@ -99,7 +106,7 @@ impl ShortString64 {
         Self {
             // SAFETY: 1 is always a valid value
             len_and_flag: unsafe { UnsafeField::new(1) }, // 0, 1
-            buf: [0; 23],
+            buf: unsafe { UnsafeField::new([0; 23]) },
         }
     }
 
@@ -143,18 +150,30 @@ impl ShortString64 {
     pub fn push_str(&mut self, s: &str) {
         let count = cmp::min(s.len(), self.remaining_capacity());
         let mut i = self.len();
+        let mut new_buf = *self.buf.get();
         for &b in &s.as_bytes()[0..count] {
-            self.buf[i] = b;
+            new_buf[i] = b;
             i += 1;
         }
-        // SAFETY: len is at most self.len() + self.remaining_capacity(), which is by definition
-        // Self::MAX_CAPACITY
         unsafe {
+            // SAFETY:
+            // - buf[0..len] is a copy of an old, valid buffer
+            self.buf.set(new_buf);
+            // SAFETY:
+            // - len is at most self.len() + self.remaining_capacity(), which is by definition
+            //   Self::MAX_CAPACITY
+            // - self.buf[0..len] has just been initialised as valid utf8 from a str
             self.set_len(self.len() + count);
         }
     }
 
-    /// Converts this to a [`LongString`]. Where the capacity is equal to
+    pub fn push(&mut self, ch: char) {
+        let mut buf = [0; 4];
+        let utf8 = ch.encode_utf8(&mut buf);
+        self.push_str(utf8);
+    }
+
+    /// Converts this to a [`LongString`]. Where the capacity is equal to or greater than
     /// `Self::MAX_CAPACITY + additional_capacity`.
     pub fn into_long(&self, additional_capacity: usize) -> LongString {
         let mut long = LongString::with_capacity(Self::MAX_CAPACITY + additional_capacity);
@@ -201,12 +220,12 @@ struct LongString {
     /// - `buf[0..len]` is always a valid SharedReadWrite slice of valid u8, if the string is not
     ///    borrowed, otherwise the permissions become that of the borrow
     len: UnsafeField<usize, 0>,
-    /// SAFETY:
+    /// # Safety
     /// buf and capacity are linked, so we can only modify either if we update the entire struct
     /// simultaneously. As a result, we cannot implement Drop. The size of the allocated object
     /// starting at buf.data is always exactly capacity bytes long.
     buf: UnsafeField<RawBuf<u8>, 1>,
-    /// SAFETY:
+    /// # Safety
     /// buf and capacity are linked, so we can only modify either if we update the entire struct
     /// simultaneously. As a result, we cannot implement Drop. The size of the allocated object
     /// starting at buf.data is always exactly capacity bytes long.
@@ -414,6 +433,14 @@ impl LongString {
         }
     }
 
+    /// Push a `char` to this string, allocating if needed. Like [`LongString::push_str`] this might
+    /// only allocate enough extra space for `ch`, but that is very unlikely in this case.
+    pub fn push(&mut self, ch: char) {
+        let mut buf = [0; 4];
+        let utf8 = ch.encode_utf8(&mut buf);
+        self.push_str(utf8);
+    }
+
     /// `len` is truncated to a 63-bit number.
     ///
     /// # Safety
@@ -443,6 +470,29 @@ impl LongString {
                 ),
             }
         };
+    }
+
+    /// Construct a new `LongString` from a `length`, `buf` and `capacity`
+    ///
+    /// # Safety
+    /// - invariants of `length`
+    ///     - `0` is always a valid value
+    ///     - `len <= capacity`
+    ///     - `buf[0..len]` is always a valid SharedReadWrite slice of valid u8, if the string is not
+    ///        borrowed, otherwise the permissions become that of the borrow
+    /// - invariants of `buf` and `capacity`
+    ///     - The size of the allocated object starting at buf is *exactly* `capacity` bytes long
+    ///     - `buf` must be allocated with std::allocator::Global
+    pub unsafe fn from_raw_parts(buf: NonNull<u8>, length: usize, capacity: usize) -> Self {
+        Self {
+            // SAFETY: invariants of `.len()` are passed to caller, so we must ensure the final bit
+            // is `0`, which we do by shifting left 1.
+            len: UnsafeField::new(length << 1),
+            // SAFETY: passed to caller
+            buf: UnsafeField::new(RawBuf { data: buf }),
+            // SAFETY: passed to caller
+            capacity: UnsafeField::new(capacity),
+        }
     }
 }
 
@@ -500,6 +550,19 @@ impl<'a> From<&'a str> for SsoString {
     }
 }
 
+/// A wrapper around `str`, so that we can implement `ToOwned` where `ToOwned::Owned` is
+/// `sso::String`
+#[repr(transparent)]
+pub struct SsoStr(str);
+
+impl ToOwned for Str {
+    type Owned = SsoString;
+
+    fn to_owned(&self) -> Self::Owned {
+        todo!()
+    }
+}
+
 impl SsoString {
     pub fn new() -> Self {
         Self {
@@ -538,6 +601,90 @@ impl SsoString {
         }
     }
 
+    duck_impl! {
+        /// Returns a slice of bytes of this string's contents
+        pub fn as_bytes(&self) -> &[u8];
+    }
+
+    // as_mut_str
+
+    never_impl!(pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>);
+
+    duck_impl! {
+        pub fn as_str(&self) -> &str;
+    }
+
+    duck_impl! {
+        pub fn capacity(&self) -> usize;
+    }
+
+    duck_impl! {
+        pub fn clear(&mut self as duck) {
+            // SAFETY: 0 is always a valid value for len on both variants
+            unsafe { duck.set_len(0) }
+        }
+    }
+
+    todo_impl! {
+        pub fn drain<R>(&mut self, _range: R) -> Drain<'_>
+        where
+            R: RangeBounds<usize>,
+    }
+
+    todo_impl! {
+        pub fn extend_from_within<R>(&mut self, _src: R)
+        where
+            R: RangeBounds<usize>,
+    }
+
+    /// Creates a new `SsoString::Long` from a length, capacity and pointer. This method only
+    /// exists to match `std::string::String`'s method of the same signature and name. It will
+    /// always create a long string, which is probably what you want if you are using this method.
+    ///
+    /// # Safety (from [`std::string::String`])
+    ///
+    /// This is highly unsafe, due to the numer of invariants that aren't checked:
+    ///
+    /// - The memory at buf needs to have been previously allocated by the same allocator the
+    ///   standard library uses, with a required alignment of exactly 1.
+    /// - `length` needs to be less than or equal to capacity.
+    /// - `capacity` needs to be the correct value.
+    /// - The first length bytes at buf need to be valid UTF-8.
+    pub unsafe fn from_raw_parts(buf: *mut u8, length: usize, capacity: usize) -> Self {
+        // SAFETY: safety contract passed to caller (buf must be nonnull)
+        let ptr = NonNull::new_unchecked(buf);
+        // SAFETY: safety contract passed to caller
+        SsoString {
+            long: ManuallyDrop::new(LongString::from_raw_parts(ptr, length, capacity)),
+        }
+    }
+
+    todo_impl!(pub fn from_utf16(_v: &[u16]) -> Result<SsoString, FromUtf16Error>);
+
+    todo_impl!(pub fn from_utf16_lossy(_v: &[u16]) -> SsoString);
+
+    todo_impl!(pub fn from_utf8(_v: Vec<u8, Global>) -> Result<String, FromUtf8Error>);
+
+    todo_impl!(pub fn from_utf8_lossy(_v: &[u8]) -> Cow<'_, SsoStr>);
+
+    todo_impl!(pub unsafe fn from_utf8_unchecked(_v: &[u8]) -> SsoString);
+
+    todo_impl!(pub fn insert(&mut self, _idx: usize, _c: char));
+
+    todo_impl!(pub fn insert_str(&mut self, _idx: usize, _s: &str));
+
+    todo_impl!(pub fn into_boxed_str(self) -> Box<str, Global>);
+
+    todo_impl!(pub fn leak<'a>(self) -> &'a mut str);
+
+    duck_impl! {
+        pub fn len(&self) -> usize;
+    }
+
+    duck_impl! {
+        pub fn push(&mut self, ch: char);
+    }
+
     /// Push a str `s` onto the end of this string
     pub fn push_str(&mut self, s: &str) {
         match self.tagged_mut() {
@@ -556,33 +703,96 @@ impl SsoString {
         }
     }
 
-    pub fn as_str(&self) -> &str {
-        match self.tagged() {
-            TaggedSsoString64::Short(short) => short.as_str(),
-            TaggedSsoString64::Long(long) => long.as_str(),
+    todo_impl!(pub fn remove(&mut self, _idx: usize) -> char);
+
+    todo_impl!(
+        pub fn replace_range<R>(&mut self, _range: R, _replace_with: &str)
+        where
+            R: RangeBounds<usize>,
+    );
+
+    pub fn reserve(&mut self, additional: usize) {
+        match self.tagged_mut() {
+            TaggedSsoString64Mut::Short(short) => {
+                let long = ManuallyDrop::new(short.into_long(additional));
+                *self = SsoString { long };
+            }
+            TaggedSsoString64Mut::Long(long) => {
+                long.realloc(additional);
+            }
         }
     }
 
-    pub fn chars(&self) -> Chars {
-        self.as_str().chars()
-    }
-
-    pub fn chars_indices(&self) -> CharIndices {
-        self.as_str().char_indices()
-    }
-
-    pub fn len(&self) -> usize {
-        match self.tagged() {
-            TaggedSsoString64::Short(short) => short.len(),
-            TaggedSsoString64::Long(long) => long.len(),
+    /// This doesn't actually reserve exactly `additional` extra bytes, it might allocate a few
+    /// extra, just because of the implementation of `Global`.
+    pub fn reserve_exact(&mut self, additional: usize) {
+        match self.tagged_mut() {
+            TaggedSsoString64Mut::Short(short) => {
+                let long = ManuallyDrop::new(short.into_long(additional));
+                *self = SsoString { long };
+            }
+            TaggedSsoString64Mut::Long(old) => {
+                let long = ManuallyDrop::new(old.clone_with_additional_capacity(additional));
+                old.free();
+                *self = SsoString { long };
+            }
         }
     }
 
-    pub fn capacity(&self) -> usize {
-        match self.tagged() {
-            TaggedSsoString64::Short(short) => short.capacity(),
-            TaggedSsoString64::Long(long) => long.capacity(),
+    /// Retains only the characters specified by the predicate.
+    ///
+    /// # TODO
+    /// This isn't really that good of an implementaion at the moment. It aggressively allocates
+    /// as much as it could possibly need, then reallocates at the end.
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(char) -> bool,
+    {
+        macro_rules! duck_body {
+            ($duck:ident, $f:ident) => {
+                for ch in self.chars() {
+                    if $f(ch) {
+                        $duck.push(ch)
+                    }
+                }
+            };
         }
+
+        let mut result = SsoString::with_capacity(self.capacity());
+        match result.tagged_mut() {
+            TaggedSsoString64Mut::Long(long) => {
+                duck_body!(long, f)
+            }
+            TaggedSsoString64Mut::Short(short) => {
+                duck_body!(short, f)
+            }
+        }
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        if capacity <= ShortString64::MAX_CAPACITY {
+            Self {
+                short: ManuallyDrop::new(ShortString64::new()),
+            }
+        } else {
+            Self {
+                long: ManuallyDrop::new(LongString::with_capacity(capacity)),
+            }
+        }
+    }
+
+    todo_impl!(pub fn shrink_to(&mut self, _min_capacity: usize));
+
+    todo_impl!(pub fn shrink_to_fit(&mut self));
+
+    todo_impl!(pub fn split_off(&mut self, _at: usize) -> String);
+
+    todo_impl!(pub fn truncate(&mut self, _new_len: usize));
+
+    todo_impl!(pub fn try_reserve(&mut self, _additional: usize) -> Result<(), TryReserveError>);
+
+    todo_impl! {
+        pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError>;
     }
 }
 
@@ -624,8 +834,8 @@ impl fmt::Display for SsoString {
 impl fmt::Debug for SsoString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.tagged() {
-            TaggedSsoString64::Short(short) => write!(f, "Short({:?})", short),
-            TaggedSsoString64::Long(long) => write!(f, "Long({:?})", long),
+            TaggedSsoString64::Short(short) => write!(f, "{:?}", short),
+            TaggedSsoString64::Long(long) => write!(f, "{:?}", long),
         }
     }
 }
@@ -645,8 +855,21 @@ impl ops::Add<&str> for SsoString {
     }
 }
 
+impl Borrow<Str> for SsoString {
+    fn borrow(&self) -> &Str {
+        // SAFETY: transmute from &T to #[repr(transparent)] &Wrapper(T)
+        unsafe { mem::transmute(self.as_str()) }
+    }
+}
+
 #[cfg(all(target_endian = "little", target_pointer_width = "64"))]
 pub type String = SsoString;
 
 #[cfg(all(not(target_endian = "little"), not(target_pointer_width = "64")))]
 pub type String = std::string::String;
+
+#[cfg(all(target_endian = "little", target_pointer_width = "64"))]
+pub type Str = SsoStr;
+
+#[cfg(all(not(target_endian = "little"), not(target_pointer_width = "64")))]
+pub type Str = str;
