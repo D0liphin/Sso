@@ -1,3 +1,5 @@
+use std::ptr::NonNull;
+
 /// Indicates that a field is unsafe to write to, since we have to uphold certain invariants.
 /// Make sure to document them!
 ///
@@ -103,6 +105,10 @@ impl<T, const FIELD_INDEX: usize> UnsafeAssign<T> for UnsafeField<T, FIELD_INDEX
     unsafe fn set(&mut self, value: T) {
         self.0 = value;
     }
+
+    fn get_mut(&mut self) -> NonNull<T> {
+        NonNull::from(&mut self.0)
+    }
 }
 
 pub trait UnsafeAssign<T>
@@ -120,6 +126,12 @@ where
     /// # Safety
     /// - must uphold all invariants of the field
     unsafe fn set(&mut self, value: T);
+
+    /// Gets a raw pointer to the value
+    /// 
+    /// # Safety
+    /// - msut uphold all invaraints when assigning the pointer
+    fn get_mut(&mut self) -> NonNull<T>;
 }
 
 /// Assign several [`UnsafeField`] 'simultaneously'.

@@ -176,12 +176,17 @@ contract. However the safety contract that rust defines for this operation, is s
 its scope.
 
 ```rust
-/// Note: in reality, the type of `Ptr` is enforced by the compiler when we use stabilized ///
-methods. So we ignore this. /// /// # Safety /// - `Ptr` and `Ptr + Delta` must be either in bounds
-or one byte past the end of an allocated /// object /// - if the following invariants are not
-upheld, further use of the returned value will result in /// undefined behavior: /// - `Ptr` and
-`Ptr + Delta` must be within bounds (isize::MAX) /// - `Ptr + Delta` must not overflow unsafe fn
-offset<Ptr, Delta>(Ptr, Delta) -> Ptr;
+/// Note: in reality, the type of `Ptr` is enforced by the compiler when we use stabilized 
+/// methods. So we ignore this. 
+/// 
+/// # Safety 
+/// - `Ptr` and `Ptr + Delta` must be either in bounds or one byte past the end of an allocated 
+/// object 
+/// - if the following invariants are not upheld, further use of the returned value will result in 
+///  undefined behavior: 
+///  - `Ptr` and `Ptr + Delta` must be within bounds (isize::MAX) 
+///  - `Ptr + Delta` must not overflow unsafe fn
+fn offset<Ptr, Delta>(Ptr, Delta) -> Ptr;
 ```
 
 **Important-ish note:** I'm actually very much unsure what these docs mean. The actual notes in

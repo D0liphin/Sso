@@ -58,7 +58,7 @@ pub fn new_slice_layout<T>(capacity: usize) -> (Layout, usize) {
 
 /// To deallocate this, make sure you multiply by `mem::size_of<T>()`.
 pub fn alloc_slice<T>(count: usize) -> NonNull<[T]> {
-    let (layout, offset) = new_slice_layout::<T>(count);
+    let (layout, _) = new_slice_layout::<T>(count);
     let (data, byte_count) = {
         #[cfg(feature = "nightly")]
         {
@@ -79,10 +79,13 @@ pub fn alloc_slice<T>(count: usize) -> NonNull<[T]> {
         }
     };
     // offset is the size of each allocation with padding
-    let capacity = byte_count / offset;
+    // let capacity = byte_count / offset;
     unsafe {
-        // SAFETY: capacity * sizeof(T) is less than data.len(), so points to a valid slice
-        let raw = ptr::slice_from_raw_parts_mut(data.as_ptr() as *mut _, capacity);
+        // SAFETY: 
+        // - this should be valid for &'static mut [MaybeUninit], so we need to validate the safety
+        //   contract of the creation of that type.
+        // - data 
+        let raw = ptr::slice_from_raw_parts_mut(data.as_ptr() as *mut _, byte_count);
         // SAFETY: ptr is non-null, since `data.as_ptr()` is non-null
         NonNull::new_unchecked(raw)
     }

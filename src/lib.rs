@@ -57,7 +57,7 @@ impl<T> RawBuf<T> {
     ///
     /// # Safety
     /// - `len` must be the exact length of the allocated object, using the value returned
-    /// with `RawBuf::new() -> (_, len)` will guarantee safety.
+    ///   with `RawBuf::new() -> (_, len)` will guarantee safety.
     /// - this must be the first time that you call this function (aka self.data cannot be dangling)
     pub unsafe fn dealloc(mut self, len: usize) -> Result<Self, InvalidArgumentError> {
         // SAFETY: cast temporarily for method, pointer is non-null still
@@ -153,21 +153,38 @@ impl ShortString64 {
         Self::MAX_CAPACITY - self.len()
     }
 
+    /// Returns the next pointer where we should allocate our string. This validates Stacked 
+    /// Borrows, by using the write access of `self`.
+    /// 
+    /// # Safety
+    /// - the returned pointer is only writable if self.len() < self.capacity()
+    /// - you must only write to this pointer if you know it is valid utf8
+    pub fn next_ptr(&mut self) -> NonNull<u8> {
+        // SAFETY: 
+        // - no issues with overflow or invalid value as self.len() < Self::MAX_CAPACITY, which is
+        //   23.
+        // - ... which is also the size of the buffer, so we're either one past buf, or within 
+        //   the buffer
+        unsafe {
+            let raw = self.buf.get_mut().cast::<u8>().as_ptr();
+            // SAFETY: raw is non-null because it is 'within' a valid allocation 
+            // UNSOUND: this could technically reach the end of the address space on some kind of 
+            // weird future architecture, but this is basically impossible. 
+            NonNull::new_unchecked(raw.add(self.len()))
+        }
+    }
+
     /// # Safety
     /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
     pub unsafe fn push_str_unchecked(&mut self, s: &str) {
-        // in the hopes that we copy three qwords
-        let mut new_buf = *self.clone().buf.get();
+        println!("{:?}.push_str_unchecked({s:?})", self.as_str());
         // SAFETY:
         // - src is valid for reads of count s.len(), as it is s
         // - dst is valid for writes of count s.len() as s.len() self.remaining_capacity(), and
         //   buf[self.len()] will point to a buffer of size remaining_capacity()
         // - both are cast from aligned pointers
         // - both are non-overlapping, we just created new_buf on the stack
-        ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), &mut new_buf as *mut u8, s.len());
-        // SAFETY:
-        // - new_buf[0..len] is a copy of an old, valid buffer
-        self.buf.set(new_buf);
+        ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), self.next_ptr().as_ptr(), s.len());
         // SAFETY:
         // - len is at most self.len() + self.remaining_capacity(), which is by definition
         //   Self::MAX_CAPACITY
@@ -177,9 +194,14 @@ impl ShortString64 {
 
     pub fn push_str(&mut self, s: &str) {
         let s_len = cmp::min(s.len(), self.remaining_capacity());
-        // SAFETY: we truncate s to at most self.remaining_capacity()
+        if s_len == 0 {
+            return;
+        }
+        // SAFETY: we truncate s to at most self.remaining_capacity(), therefore s_truncated is 
+        // <= self.remaining_capacity();
+        let s_truncated = &s[0..s_len];
         unsafe {
-            self.push_str_unchecked(&s[0..s_len]);
+            self.push_str_unchecked(&s_truncated);
         }
     }
 
@@ -243,8 +265,12 @@ impl ShortString64 {
     ///
     /// This is different from the restrictions on the method of the same name on `LongString`,
     /// where this is not always convertable.
+    ///
+    /// We need this method for this variant because the provenance of the returned slice is
+    /// determined by the provenance of self. Therefore, if we used a `&self`, the region would be
+    /// tagged with SharedReadOnly
     pub fn get_sized_buf_mut(&mut self) -> NonNull<[u8]> {
-        let ptr = self as *const Self as *const u8;
+        let ptr = self as *mut Self as *mut u8;
         unsafe {
             // SAFETY:
             // - note that we construct this from a `&self`, to comply with Stacked Borrows
@@ -255,7 +281,7 @@ impl ShortString64 {
             // - ptr add is within the object and len is at most sizeof(ShortString) - 1
             // - ptr.add(1).add(self.len()) is always guaranteed to be within the allocated object
             // - both are properly aligned because we're working with bytes
-            let raw = ptr::slice_from_raw_parts(ptr.add(1), self.len());
+            let raw = ptr::slice_from_raw_parts_mut(ptr.add(1), self.len());
             // SAFETY: ptr.add(1) cannot be null, as it is also a valid &[u8]
             NonNull::new_unchecked(raw as *mut [u8])
         }
@@ -264,7 +290,7 @@ impl ShortString64 {
     /// interpret this string as a `&str`
     pub fn as_mut_str(&mut self) -> &mut str {
         // SAFETY: cast to `&'self mut [u8]` is always valid according to function description
-        let buf = unsafe { &mut *self.get_sized_buf().as_ptr() };
+        let buf = unsafe { &mut *self.get_sized_buf_mut().as_ptr() };
         // SAFETY: always valid utf-8, by definition
         unsafe { std::str::from_utf8_unchecked_mut(buf) }
     }
@@ -363,7 +389,6 @@ impl LongString {
         }
     }
 
-    #[allow(dead_code)]
     pub fn get_non_null_slice(&self, index: usize, len: usize) -> Option<NonNull<[u8]>> {
         if index + len > self.capacity() {
             return None;
