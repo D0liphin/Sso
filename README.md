@@ -8,6 +8,12 @@ This crate defines a single non-conditional export `String` which is either `sso
 Small string optimisation is only available on
 `#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`.
 
+I am in the process of implementing every `std::string::String` method for `sso::SsoString`, there
+are declarations for every method, but most of them are just `todo_impl!()`s. One method, 
+`as_mut_vec` is impossible... but who uses that anyway? 
+
+All the methods I think are useful (except for `pop`, I am having lunch) are implemented.
+
 # Can I use this?
 
 This is an imaginary conversation I am having with a person who will never exist, but I would
