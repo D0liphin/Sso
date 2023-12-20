@@ -1,6 +1,11 @@
-#![feature(allocator_api, alloc_layout_extra, slice_ptr_get)]
+#![doc = include_str!("../README.md")]
+#![cfg_attr(feature = "nightly", feature(allocator_api))]
+
+#[cfg(feature = "nightly")]
+use std::alloc::{Allocator, Global};
+
 use std::{
-    alloc::{Allocator, Global, Layout},
+    alloc::Layout,
     borrow::{Borrow, Cow},
     cmp,
     collections::TryReserveError,
@@ -13,8 +18,8 @@ use std::{
     string::{Drain, FromUtf16Error, FromUtf8Error},
 };
 
-mod benches;
 mod impl_macros;
+mod unified_alloc;
 pub mod unsafe_field;
 
 use unsafe_field::{UnsafeAssign, UnsafeField};
@@ -38,25 +43,14 @@ impl<T> RawBuf<T> {
         }
     }
 
-    pub fn new_layout(capacity: usize) -> (Layout, usize) {
-        Layout::new::<T>()
-            .repeat(capacity)
-            .expect("capacity should be valid")
-    }
-
     pub fn new(capacity: usize) -> (Self, usize) {
         if capacity == 0 {
             return (Self::dangling(), 0);
         }
 
-        let (layout, offset) = Self::new_layout(capacity);
-        let data = Global
-            .allocate(layout)
-            .expect("should be a valid allocation");
-        let capacity = data.len() / offset; // offset is the size of each allocation with padding
-        let data = data.as_non_null_ptr();
+        let data = unified_alloc::alloc_slice::<T>(capacity);
 
-        (Self { data: data.cast() }, capacity)
+        (Self { data: data.cast() }, data.len())
     }
 
     /// Deallocates the buffer. Returns [`InvalidArgumentError`] if `len` is impossibly big.
@@ -64,9 +58,20 @@ impl<T> RawBuf<T> {
     /// # Safety
     /// - `len` must be the exact length of the allocated object, using the value returned
     /// with `RawBuf::new() -> (_, len)` will guarantee safety.
-    /// - this must be the first time that you call this function
+    /// - this must be the first time that you call this function (aka self.data cannot be dangling)
     pub unsafe fn dealloc(mut self, len: usize) -> Result<Self, InvalidArgumentError> {
-        Global.deallocate(self.data.cast(), Self::new_layout(len).0);
+        // SAFETY: cast temporarily for method, pointer is non-null still
+        let nonnull_slice = unsafe {
+            NonNull::new_unchecked(ptr::slice_from_raw_parts_mut(self.data.as_ptr(), len))
+        };
+        // SAFETY:
+        // - nonnull_slice points to an allocation created by RawBuf<T>
+        // - the allocation should not be deallocated (caller contract)
+        // - the len of the allocation should be the same as what was returned by new (caller
+        //   contract)
+        unsafe {
+            unified_alloc::dealloc_slice(nonnull_slice);
+        }
         // we need to self.data explicitly dangle, so that general slice functions are
         // perceived as safe by Miri. If we allocate, and deallocate, Miri has a tag for the
         // region and will think slice_from_raw_parts is valid.
@@ -87,7 +92,7 @@ impl<T> RawBuf<T> {
 #[derive(Clone, Copy)]
 #[repr(C)]
 #[repr(align(8))]
-struct ShortString64 {
+pub struct ShortString64 {
     /// # Safety
     /// - `1` is always a valid value
     /// - the last bit must always be `1`
@@ -151,8 +156,15 @@ impl ShortString64 {
     /// # Safety
     /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
     pub unsafe fn push_str_unchecked(&mut self, s: &str) {
-        let mut new_buf = *self.clone().buf.get(); // in the hopes that we copy three qwords
-        new_buf.copy_from_slice(self.buf.get());
+        // in the hopes that we copy three qwords
+        let mut new_buf = *self.clone().buf.get();
+        // SAFETY:
+        // - src is valid for reads of count s.len(), as it is s
+        // - dst is valid for writes of count s.len() as s.len() self.remaining_capacity(), and
+        //   buf[self.len()] will point to a buffer of size remaining_capacity()
+        // - both are cast from aligned pointers
+        // - both are non-overlapping, we just created new_buf on the stack
+        ptr::copy_nonoverlapping(s.as_bytes().as_ptr(), &mut new_buf as *mut u8, s.len());
         // SAFETY:
         // - new_buf[0..len] is a copy of an old, valid buffer
         self.buf.set(new_buf);
@@ -165,7 +177,7 @@ impl ShortString64 {
 
     pub fn push_str(&mut self, s: &str) {
         let s_len = cmp::min(s.len(), self.remaining_capacity());
-        // SAFETY: we truncate s, to at most self.remaining_capacity()
+        // SAFETY: we truncate s to at most self.remaining_capacity()
         unsafe {
             self.push_str_unchecked(&s[0..s_len]);
         }
@@ -191,17 +203,70 @@ impl ShortString64 {
 
     /// Returns a slice of bytes that is always valid utf-8
     pub fn as_bytes(&self) -> &[u8] {
-        let ptr = self as *const Self as *const u8;
-        // SAFETY:
-        // - ptr add is within the object and len is at most sizeof(ShortString) - 1
-        // - note that we construct this from a `&self`, to comply with Stacked Borrows
-        unsafe { slice::from_raw_parts(ptr.add(1), self.len()) }
+        // SAFETY: always safe to convert to &[u8]
+        unsafe { &*self.get_sized_buf().as_ptr() }
     }
 
     /// interpret this string as a `&str`
     pub fn as_str(&self) -> &str {
         // SAFETY: always valid utf-8, by definition
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+
+    /// Returns `buf[0..len]` as a `NonNull<[u8]>` with len `len`, you may cast the resulting slice
+    /// to a `&'self str`  at any time, assuming all unsafe functions are called with their
+    /// preconditions satisified.
+    ///
+    /// This is different from the restrictions on the method of the same name on `LongString`,
+    /// where this is not always convertable.
+    pub fn get_sized_buf(&self) -> NonNull<[u8]> {
+        let ptr = self as *const Self as *const u8;
+        unsafe {
+            // SAFETY:
+            // - note that we construct this from a `&self`, to comply with Stacked Borrows
+            // - this operation is not safe, but we make assertions about the result, namely that
+            //   it can be used as slice, so long as its lifetime is tied to a self parameter.
+            //   Therefore, we must make sure that the slice is valid for slice::from_raw_parts
+            //
+            // - ptr add is within the object and len is at most sizeof(ShortString) - 1
+            // - ptr.add(1).add(self.len()) is always guaranteed to be within the allocated object
+            // - both are properly aligned because we're working with bytes
+            let raw = ptr::slice_from_raw_parts(ptr.add(1), self.len());
+            // SAFETY: ptr.add(1) cannot be null, as it is also a valid &[u8]
+            NonNull::new_unchecked(raw as *mut [u8])
+        }
+    }
+
+    /// Returns `buf[0..len]` as a `NonNull<[u8]>` with len `len`, you may cast the resulting slice
+    /// to a `&'self str`  at any time, assuming all unsafe functions are called with their
+    /// preconditions satisified.
+    ///
+    /// This is different from the restrictions on the method of the same name on `LongString`,
+    /// where this is not always convertable.
+    pub fn get_sized_buf_mut(&mut self) -> NonNull<[u8]> {
+        let ptr = self as *const Self as *const u8;
+        unsafe {
+            // SAFETY:
+            // - note that we construct this from a `&self`, to comply with Stacked Borrows
+            // - this operation is not safe, but we make assertions about the result, namely that
+            //   it can be used as slice, so long as its lifetime is tied to a self parameter.
+            //   Therefore, we must make sure that the slice is valid for slice::from_raw_parts
+            //
+            // - ptr add is within the object and len is at most sizeof(ShortString) - 1
+            // - ptr.add(1).add(self.len()) is always guaranteed to be within the allocated object
+            // - both are properly aligned because we're working with bytes
+            let raw = ptr::slice_from_raw_parts(ptr.add(1), self.len());
+            // SAFETY: ptr.add(1) cannot be null, as it is also a valid &[u8]
+            NonNull::new_unchecked(raw as *mut [u8])
+        }
+    }
+
+    /// interpret this string as a `&str`
+    pub fn as_mut_str(&mut self) -> &mut str {
+        // SAFETY: cast to `&'self mut [u8]` is always valid according to function description
+        let buf = unsafe { &mut *self.get_sized_buf().as_ptr() };
+        // SAFETY: always valid utf-8, by definition
+        unsafe { std::str::from_utf8_unchecked_mut(buf) }
     }
 }
 
@@ -264,6 +329,14 @@ impl LongString {
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
     }
 
+    pub fn as_mut_str(&mut self) -> &mut str {
+        // SAFETY: conversion to `&'self mut [u8]` is valid, since we have not modified the buffer,
+        // since acquiring the pointer (we immediately derefrenced)
+        let buf = unsafe { &mut *self.get_sized_buf().as_ptr() };
+        // SAFETY: always valid utf-8, by definition
+        unsafe { std::str::from_utf8_unchecked_mut(buf) }
+    }
+
     /// alias for `self.as_str().as_bytes()`
     pub fn as_bytes(&self) -> &[u8] {
         // SAFETY:
@@ -295,7 +368,9 @@ impl LongString {
         if index + len > self.capacity() {
             return None;
         }
-        let Some(data) = self.get_non_null(index) else { return None; };
+        let Some(data) = self.get_non_null(index) else {
+            return None;
+        };
 
         unsafe {
             // SAFETY:
@@ -517,12 +592,12 @@ impl Clone for LongString {
     }
 }
 
-enum TaggedSsoString64Mut<'a> {
+pub enum TaggedSsoString64Mut<'a> {
     Short(&'a mut ShortString64),
     Long(&'a mut LongString),
 }
 
-enum TaggedSsoString64<'a> {
+pub enum TaggedSsoString64<'a> {
     Short(&'a ShortString64),
     Long(&'a LongString),
 }
@@ -587,7 +662,7 @@ impl SsoString {
 
     /// Returns the underlying union as an enum, allowing you to access the underlying short or
     /// long variant for the string
-    fn tagged(&self) -> TaggedSsoString64 {
+    pub fn tagged(&self) -> TaggedSsoString64 {
         if self.is_short() {
             TaggedSsoString64::Short(unsafe { &self.short })
         } else {
@@ -596,7 +671,7 @@ impl SsoString {
     }
 
     /// Same as [`SsoString::tagged`], but returns allows mutation of the underlying values instead
-    fn tagged_mut(&mut self) -> TaggedSsoString64Mut {
+    pub fn tagged_mut(&mut self) -> TaggedSsoString64Mut {
         if self.is_short() {
             TaggedSsoString64Mut::Short(unsafe { &mut self.short })
         } else {
@@ -609,7 +684,9 @@ impl SsoString {
         pub fn as_bytes(&self) -> &[u8];
     }
 
-    todo_impl!(pub fn as_mut_str(&mut self) -> &mut str);
+    duck_impl! {
+        pub fn as_mut_str(&mut self) -> &mut str;
+    }
 
     never_impl!(pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>);
 
@@ -666,7 +743,7 @@ impl SsoString {
 
     todo_impl!(pub fn from_utf16_lossy(_v: &[u16]) -> SsoString);
 
-    todo_impl!(pub fn from_utf8(_v: Vec<u8, Global>) -> Result<String, FromUtf8Error>);
+    todo_impl!(pub fn from_utf8(_v: Vec<u8>) -> Result<String, FromUtf8Error>);
 
     todo_impl!(pub fn from_utf8_lossy(_v: &[u8]) -> Cow<'_, SsoStr>);
 
@@ -676,7 +753,7 @@ impl SsoString {
 
     todo_impl!(pub fn insert_str(&mut self, _idx: usize, _s: &str));
 
-    todo_impl!(pub fn into_boxed_str(self) -> Box<str, Global>);
+    todo_impl!(pub fn into_boxed_str(self) -> Box<str>);
 
     todo_impl!(pub fn leak<'a>(self) -> &'a mut str);
 
@@ -729,8 +806,8 @@ impl SsoString {
         }
     }
 
-    duck_impl! { 
-        pub unsafe fn set_len(&mut self, len: usize); 
+    duck_impl! {
+        pub unsafe fn set_len(&mut self, len: usize);
     }
 
     duck_impl! {

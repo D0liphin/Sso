@@ -110,3 +110,11 @@ fn long_string_reallocs_automatically() {
     assert_eq!(s.as_str(), &correct_s);
     s.free();
 }
+
+#[test]
+fn short_string_as_mut_str_allows_mutation() {
+    let mut s = ShortString::new();
+    s.push_str("Hello, world!");
+    s.as_mut_str().make_ascii_uppercase();
+    assert_eq!(s.as_str(), "HELLO, WORLD!");
+}

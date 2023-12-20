@@ -1,18 +1,21 @@
 # `SsoString` in Rust
 
-Small string optimisation is done only for strings of length 23 or less.
+Small string optimisation for Rust. This is currently only available on nightly, since 
+`allocator_api` is not stable. The hope is that it... will be? Soon... I hope. If I ever decide to
+use this crate for something that requires stable Rust, I will add stable support.
 
-This crate defines a single non-conditional export `String` which is either `sso::SsoString`, or
-`std::string::String` depending on your architecture.
+Small string optimisation is done only for strings of length 23 or less. The goal is for this to
+be a drop in replacement for `std::string::String`.
 
 Small string optimisation is only available on
-`#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`.
+`#[cfg(all(target_endian = "little", target_pointer_width = "64"))]`. Otherwise, `sso::String` is
+just an alias for `std::string::String`.
 
 I am in the process of implementing every `std::string::String` method for `sso::SsoString`, there
 are declarations for every method, but most of them are just `todo_impl!()`s. One method, 
 `as_mut_vec` is impossible... but who uses that anyway? 
 
-All the methods I think are useful (except for `pop`, I am having lunch) are implemented.
+All the methods I think are useful are implemented.
 
 # Can I use this?
 
@@ -27,15 +30,46 @@ For now, everything _appears_ to be safe, but nothing is as it seems in the land
 
 ## Usage
 
+### Basic String Operations
+
 ```rust
 use sso::String;
 
 let mut s = String::new();
 s += "Hello, world!";
 assert_eq!(&s, "Hello, world!");
+
+let exclamation_mark = s.pop();
+assert_eq!(exclamation_mark, Some('!'));
 ```
 
-The goal is to have this completely replace `String`.
+#### Automatic Upgrading between String Types
+
+```rust
+use sso::String;
+
+let mut s = String::from("Hello, world!");
+assert!(s.is_short());
+assert!(!s.is_long());
+assert_eq!(&s, "Hello, world!");
+
+s += " My name is Gregory :)";
+assert!(s.is_long());
+assert!(!s.is_short());
+assert_eq!(&s, "Hello, world! My name is Gregory :)");
+```
+
+Use of `is_short()` and `is_long()` functions should be prefaced with the following conditionl
+compilation options:
+
+```rust
+#[cfg(all(target_endian = "little", target_pointer_width = "64"))]
+```
+
+#### Matching Internals
+
+`sso::String` is best for code that doesn't do a lot of mutating. If you have a lot of mutations
+and don't want to branch 
 
 ## Why is your code weird?
 
@@ -184,33 +218,3 @@ addition of `unsafe` fields, or the the allowance of a few exceptions to the rul
 provide in a library).
 
 ## What is Item-scope?
-
-```rust
-SimultaneousUnsafeAssignment
-    .with_value(5)
-    .with_value(String::new("Hello, world"))
-    .with_value(Some(Foo::new()))
-    .with_dst(&mut f1)
-    .with_dst(&mut f2)
-    .with_dst(&mut f3)
-    .set_all();
-
-struct Pair<T, U>(T, U);
-
-trait MakePair<T> {
-    fn make_pair(self, rhs: T) -> Pair<Self, T>;
-}
-
-impl<T, U> MakePair<U> for UnsafeField<T> {
-    fn make_pair(self, rhs: U) -> Pair<Self, U> {
-        Pair(self, rhs)
-    }
-}
-
-impl<T, U: MakePair<V>, V> MakePair<V> for Pair<T, U> {
-    fn make_pair(self, rhs: V) -> Pair<Self,>
-}
-
-Pair(5, ()).with(string).with(foo);
-Pair(5, Pair(String::new("Hello, world"), Pair(Foo::new(), ())))
-```
