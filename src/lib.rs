@@ -710,7 +710,15 @@ impl SsoString {
         pub fn as_mut_str(&mut self) -> &mut str;
     }
 
-    never_impl!(pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>);
+    never_impl! {
+        /// A method with the same name exists on `std::string::String`, but cannot exist on this
+        /// version, as it does not use a vector internally (ever). I don't think this method is 
+        /// good anyway, since it doesn't scope the unsafe behaviour appropriately.
+        /// 
+        /// If you desperately want to use this kind of method, you can simply create `&str`s 
+        /// with unsafe unchecked methods. Probably not needed though, but I won't judge `:o)`
+        pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>;
+    }
 
     duck_impl! {
         pub fn as_str(&self) -> &str;

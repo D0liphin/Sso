@@ -243,7 +243,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -265,7 +265,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -287,7 +287,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -311,7 +311,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -335,7 +335,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -359,7 +359,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -383,7 +383,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -407,7 +407,7 @@ macro_rules! todo_impl {
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
         /// A method with the same name exists on [`std::string::String`], but it is not yet 
-        /// implemented for [`SsoString`]. This function will panic on call.
+        /// implemented for [`SsoString`]. This function will panic on call
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
