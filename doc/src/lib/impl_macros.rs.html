@@ -761,7 +761,6 @@
 </span><span class="macro">macro_rules! </span>todo_impl {
     <span class="comment">// auto
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -770,8 +769,9 @@
             $(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>),+,)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>($(<span class="macro-nonterminal">$value</span>: <span class="macro-nonterminal">$T</span>),<span class="kw-2">*</span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>)<span class="question-mark">? 
@@ -783,7 +783,6 @@
 
     <span class="comment">// auto unsafe 
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -792,8 +791,9 @@
             $(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>($(<span class="macro-nonterminal">$value</span>: <span class="macro-nonterminal">$T</span>),<span class="kw-2">*</span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>)<span class="question-mark">? 
@@ -805,7 +805,6 @@
 
     <span class="comment">// auto self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -814,8 +813,9 @@
             <span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>),+,)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(
@@ -829,7 +829,6 @@
 
     <span class="comment">// auto unsafe self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -838,8 +837,9 @@
             <span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(
@@ -853,7 +853,6 @@
 
     <span class="comment">// auto &amp;self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -862,8 +861,9 @@
             <span class="kw-2">&amp;</span><span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>),+,)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(
@@ -877,7 +877,6 @@
 
     <span class="comment">// auto unsafe &amp;self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -886,8 +885,9 @@
             <span class="kw-2">&amp;</span><span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(
@@ -901,7 +901,6 @@
 
     <span class="comment">// auto &amp;mut self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -910,8 +909,9 @@
             <span class="kw-2">&amp;mut </span><span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>),+,)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(
@@ -925,7 +925,6 @@
 
     <span class="comment">// auto unsafe &amp;mut self
     </span>{
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>:meta]</span>)*
         <span class="macro-nonterminal">$vis</span>:vis <span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>:ident
         $(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
@@ -934,8 +933,9 @@
             <span class="kw-2">&amp;mut </span><span class="self">self</span>$(,$(<span class="macro-nonterminal">$value</span>:ident: <span class="macro-nonterminal">$T</span>:ty),<span class="kw-2">*</span>$(,)<span class="question-mark">?</span>)<span class="question-mark">?
         </span>) $(-&gt; <span class="macro-nonterminal">$Returns</span>:ty)<span class="question-mark">? </span>$(<span class="kw">where </span>$(<span class="macro-nonterminal">$wherett</span>:tt)<span class="kw-2">*</span>)<span class="question-mark">?</span>$(;)<span class="question-mark">?
     </span>} =&gt; {
-        $(<span class="attr">#[<span class="macro-nonterminal">$attr</span>]</span>)*
-        <span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
+        <span class="doccomment">/// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
+        </span><span class="macro-nonterminal">$vis </span><span class="kw">unsafe fn </span><span class="macro-nonterminal">$method</span>$(&lt;
             $($(<span class="macro-nonterminal">$a</span>:lifetime),+$(,)<span class="question-mark">?</span>)<span class="question-mark">?
             </span>$(<span class="macro-nonterminal">$TParam</span>),*
         &gt;)<span class="question-mark">?</span>(

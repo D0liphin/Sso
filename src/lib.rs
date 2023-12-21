@@ -175,7 +175,6 @@ impl ShortString64 {
     /// # Safety
     /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
     pub unsafe fn push_str_unchecked(&mut self, s: &str) {
-        println!("{:?}.push_str_unchecked({s:?})", self.as_str());
         // SAFETY:
         // - src is valid for reads of count s.len(), as it is s
         // - dst is valid for writes of count s.len() as s.len() self.remaining_capacity(), and

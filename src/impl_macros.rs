@@ -234,7 +234,6 @@ pub const TODO_IMPL_MESSAGE: &'static str =
 macro_rules! todo_impl {
     // auto
     {
-        $(#[$attr:meta])*
         $vis:vis fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -243,7 +242,8 @@ macro_rules! todo_impl {
             $($value:ident: $T:ty),*$(,)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -256,7 +256,6 @@ macro_rules! todo_impl {
 
     // auto unsafe 
     {
-        $(#[$attr:meta])*
         $vis:vis unsafe fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -265,7 +264,8 @@ macro_rules! todo_impl {
             $($value:ident: $T:ty),*$(,)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -278,7 +278,6 @@ macro_rules! todo_impl {
 
     // auto self
     {
-        $(#[$attr:meta])*
         $vis:vis fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -287,7 +286,8 @@ macro_rules! todo_impl {
             self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -302,7 +302,6 @@ macro_rules! todo_impl {
 
     // auto unsafe self
     {
-        $(#[$attr:meta])*
         $vis:vis unsafe fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -311,7 +310,8 @@ macro_rules! todo_impl {
             self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -326,7 +326,6 @@ macro_rules! todo_impl {
 
     // auto &self
     {
-        $(#[$attr:meta])*
         $vis:vis fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -335,7 +334,8 @@ macro_rules! todo_impl {
             &self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -350,7 +350,6 @@ macro_rules! todo_impl {
 
     // auto unsafe &self
     {
-        $(#[$attr:meta])*
         $vis:vis unsafe fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -359,7 +358,8 @@ macro_rules! todo_impl {
             &self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
@@ -374,7 +374,6 @@ macro_rules! todo_impl {
 
     // auto &mut self
     {
-        $(#[$attr:meta])*
         $vis:vis fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -383,7 +382,8 @@ macro_rules! todo_impl {
             &mut self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis fn $method$(<
             $($($a),+,)?
             $($TParam),*
@@ -398,7 +398,6 @@ macro_rules! todo_impl {
 
     // auto unsafe &mut self
     {
-        $(#[$attr:meta])*
         $vis:vis unsafe fn $method:ident
         $(<
             $($($a:lifetime),+$(,)?)?
@@ -407,7 +406,8 @@ macro_rules! todo_impl {
             &mut self$(,$($value:ident: $T:ty),*$(,)?)?
         ) $(-> $Returns:ty)? $(where $($wherett:tt)*)?$(;)?
     } => {
-        $(#[$attr])*
+        /// A method with the same name exists on [`std::string::String`], but it is not yet 
+        /// implemented for [`SsoString`]. This function will panic on call.
         $vis unsafe fn $method$(<
             $($($a:lifetime),+$(,)?)?
             $($TParam),*
