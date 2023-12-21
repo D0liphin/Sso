@@ -69,7 +69,33 @@ compilation options:
 #### Matching Internals
 
 `sso::String` is best for code that doesn't do a lot of mutating. If you have a lot of mutations
-and don't want to branch 
+and don't want to branch, you can match the internal string. For example
+
+```rust
+use sso::String;
+
+let s = String::new();
+// upgrade this string, note that any additional capacity will upgrade this string, because the 
+// minimum capacity is 23.
+s.reserve(100); 
+#[cfg(all(target_endian = "little", target_pointer_width = "64"))]
+{
+    assert!(s.is_long());
+    match s.tagged_mut() {
+        TaggedSsoString64Mut::Long(long) => {
+            for _ in 0..1000 {
+                long.push_str("something");
+            }
+        }
+        TaggedSsoString64Mut::Short(..) => unreachable!(),
+    }
+}
+#[cfg(not(all(target_endian = "little", target_pointer_width = "64")))]
+{ unimplemented!() }
+```
+
+This is a bad idea though. The API is unstable and it's no long replaceable by `std::string::String`
+on non-optimized architectures.
 
 ## Why is your code weird?
 
@@ -223,3 +249,5 @@ addition of `unsafe` fields, or the the allowance of a few exceptions to the rul
 provide in a library).
 
 ## What is Item-scope?
+
+not written this bit yet.
