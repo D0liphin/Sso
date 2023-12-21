@@ -32,7 +32,7 @@ For now, everything _appears_ to be safe, but nothing is as it seems in the land
 
 ## Usage
 
-### Basic String Operations
+#### Basic String Operations
 
 ```rust
 use sso::String;
