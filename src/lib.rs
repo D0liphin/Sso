@@ -30,7 +30,7 @@ mod tests;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct RawBuf<T> {
-    data: NonNull<T>,
+    pub(crate) data: NonNull<T>,
 }
 
 #[derive(Debug)]
@@ -175,6 +175,9 @@ impl ShortString64 {
     /// # Safety
     /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
     pub unsafe fn push_str_unchecked(&mut self, s: &str) {
+        println!("{:?}.push_str_unchecked({s:?})", self.as_str());
+        println!("self as bytes: {:?}", self.as_bytes());
+        println!("s as bytes: {:?}", s.as_bytes());
         // SAFETY:
         // - src is valid for reads of count s.len(), as it is s
         // - dst is valid for writes of count s.len() as s.len() self.remaining_capacity(), and
@@ -189,16 +192,15 @@ impl ShortString64 {
         self.set_len(self.len() + s.len());
     }
 
+    /// Push a string `s` to the end o this string. If `s` does not fit, do nothing.
     pub fn push_str(&mut self, s: &str) {
-        let s_len = cmp::min(s.len(), self.remaining_capacity());
-        if s_len == 0 {
+        if s.len() > self.remaining_capacity() {
             return;
         }
-        // SAFETY: we truncate s to at most self.remaining_capacity(), therefore s_truncated is
-        // <= self.remaining_capacity();
-        let s_truncated = &s[0..s_len];
+        // SAFETY: bounds check done such that all code that for all code that reaches this point,
+        // s.len() <= self.remaining_capacity()
         unsafe {
-            self.push_str_unchecked(&s_truncated);
+            self.push_str_unchecked(&s);
         }
     }
 
@@ -390,9 +392,7 @@ impl LongString {
         if index + len > self.capacity() {
             return None;
         }
-        let Some(data) = self.get_non_null(index) else {
-            return None;
-        };
+        let data = self.get_non_null(index).expect("index <= self.capacity()");
 
         unsafe {
             // SAFETY:
@@ -627,8 +627,8 @@ pub enum TaggedSsoString64<'a> {
 #[cfg(all(target_endian = "little", target_pointer_width = "64"))]
 #[repr(C)]
 pub union SsoString {
-    short: ManuallyDrop<ShortString64>,
-    long: ManuallyDrop<LongString>,
+    pub(crate) short: ManuallyDrop<ShortString64>,
+    pub(crate) long: ManuallyDrop<LongString>,
 }
 
 impl Drop for SsoString {
@@ -653,16 +653,41 @@ impl<'a> From<&'a str> for SsoString {
 /// A wrapper around `str`, so that we can implement `ToOwned` where `ToOwned::Owned` is
 /// `sso::String`
 #[repr(transparent)]
+#[derive(Debug, PartialEq)]
 pub struct SsoStr(str);
+
+impl Deref for SsoStr {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl SsoStr {
+    /// cast a `&str` to a `&SsoStr`
+    pub fn from_str(s: &str) -> &Self {
+        // SAFETY:
+        // - repr transparent wrapper around a T is always transmutable to that T
+        // - if T -> U then &'a T -> &'a U
+        unsafe { mem::transmute(s) }
+    }
+
+    /// cast a `&mut str` to a `&mut SsoStr`
+    pub fn from_mut_str(s: &mut str) -> &mut Self {
+        // SAFETY:
+        // - repr transparent wrapper around a T is always transmutable to that T
+        // - if T -> U then &'a mut T -> &'a mut U
+        unsafe { mem::transmute(s) }
+    }
+}
 
 impl ToOwned for SsoStr {
     type Owned = SsoString;
 
     fn to_owned(&self) -> Self::Owned {
-        // SAFETY: repr transarent wrapper around a T is always transmutable to that T
-        let s = unsafe { mem::transmute(self) };
-        let mut owned = SsoString::new();
-        owned.push_str(s);
+        let s: &str = self;
+        let owned = SsoString::from(s);
         owned
     }
 }
@@ -795,8 +820,10 @@ impl SsoString {
         pub fn len(&self) -> usize;
     }
 
-    duck_impl! {
-        pub fn push(&mut self, ch: char);
+    pub fn push(&mut self, ch: char) {
+        let mut buf = [0; 4];
+        let utf8 = ch.encode_utf8(&mut buf);
+        self.push_str(utf8);
     }
 
     /// Push a str `s` onto the end of this string

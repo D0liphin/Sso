@@ -1,7 +1,50 @@
+use std::{
+    borrow::Cow,
+    mem::{self, ManuallyDrop},
+    ptr::{self, NonNull},
+};
+
+use crate::{RawBuf, SsoStr, TaggedSsoString64Mut};
+
 type StdString = std::string::String;
 type String = super::SsoString;
 type ShortString = super::ShortString64;
 type LongString = super::LongString;
+
+fn assert_aligned<T>(ptr: *const T) {
+    assert_eq!(ptr.align_offset(mem::align_of::<T>()), 0)
+}
+
+fn assert_non_null<T>(ptr: *const T) {
+    assert_ne!(ptr, ptr::null())
+}
+
+#[test]
+fn raw_buf_clones_correctly() {
+    let (buf, ..) = RawBuf::<i32>::new(16);
+    assert_eq!(buf.data, buf.clone().data);
+}
+
+#[test]
+fn raw_buf_is_aligned_and_non_null() {
+    let (buf, ..) = RawBuf::<i32>::new(16);
+    assert_aligned(buf.as_ptr());
+    assert_non_null(buf.as_ptr());
+}
+
+#[test]
+fn raw_buf_capacity_is_correct() {
+    fn assert_raw_buf_capacity_is_correct<T>() {
+        let (_, byte_count) = RawBuf::<i32>::new(16);
+        assert!(byte_count >= 16 * mem::size_of::<i32>());
+
+        let (buf, byte_count) = RawBuf::<i32>::new(0);
+        assert_eq!(buf.data, NonNull::<i32>::dangling());
+        assert_eq!(byte_count, 0);
+    }
+    assert_raw_buf_capacity_is_correct::<i32>();
+    assert_raw_buf_capacity_is_correct::<u8>();
+}
 
 #[test]
 fn test_sso_string_upgrades() {
@@ -112,9 +155,120 @@ fn long_string_reallocs_automatically() {
 }
 
 #[test]
-fn short_string_as_mut_str_allows_mutation() {
-    let mut s = ShortString::new();
-    s.push_str("Hello, world!");
+fn as_mut_str_works() {
+    let mut s = String::from("Hello, world!");
     s.as_mut_str().make_ascii_uppercase();
+    assert!(s.is_short());
     assert_eq!(s.as_str(), "HELLO, WORLD!");
+
+    s.reserve(100);
+    assert!(s.is_long());
+    s.as_mut_str().make_ascii_lowercase();
+    assert_eq!(s.as_str(), "hello, world!");
+}
+
+#[test]
+fn contructable_from_raw_parts() {
+    let mut s = ManuallyDrop::new(String::from("Hello, world!"));
+    s.reserve(100);
+    assert!(s.is_long());
+
+    let TaggedSsoString64Mut::Long(long) = s.tagged_mut() else {
+        unreachable!()
+    };
+
+    let (buf, length, capacity) = (long.buf().data, long.len(), long.capacity());
+    // SAFETY: `s` is ManuallyDrop, so we own this buffer. `s` will also never call free, since we
+    // override the name, so soundness of code remains the same
+    let s = unsafe { String::from_raw_parts(buf.as_ptr(), length, capacity) };
+    assert_eq!(&s, "Hello, world!");
+}
+
+#[test]
+fn long_string_get_non_null_slice() {
+    let mut long = LongString::with_capacity(32);
+    long.push_str("Hello, world!");
+    assert_eq!(None, long.get_non_null_slice(4, long.capacity() + 10));
+    let slice = long.get_non_null_slice(0, 5).expect("valid slice");
+    assert_aligned(slice.as_ptr() as *mut u8);
+    assert_eq!(
+        slice.as_ptr() as *const [u8],
+        &long.as_bytes()[0..5] as *const [u8]
+    );
+    long.free();
+}
+
+#[test]
+fn long_string_gets_non_null() {
+    let mut long = LongString::with_capacity(32);
+    long.push_str("012345");
+    assert_eq!(
+        long.get_non_null(4).map(|nn| nn.as_ptr() as *const u8),
+        Some(&long.as_bytes()[4] as *const u8)
+    );
+    assert_eq!(None, long.get_non_null(33));
+    long.free();
+}
+
+#[test]
+fn long_string_constructs_from_str() {
+    let long = LongString::from_str("💁👌🎍😍");
+    assert_eq!(long.as_str(), "💁👌🎍😍");
+}
+
+#[test]
+fn can_use_sso_str_for_cow() {
+    let mut sso_cow = Cow::Borrowed(SsoStr::from_str("Hello, world!"));
+    sso_cow.to_mut().push_str(" let's add some more stuff");
+    assert_eq!(
+        Cow::Owned::<SsoStr>(String::from("Hello, world! let's add some more stuff")),
+        sso_cow
+    );
+}
+
+#[test]
+fn short_string_push_works() {
+    let mut s = ShortString::new();
+    s.push('a');
+    assert_eq!(s.as_str(), "a");
+
+    s.push('あ');
+    assert_eq!(s.as_str(), "aあ");
+
+    s.push_str("much too long to fit in a short string");
+    assert_eq!(s.as_str(), "aあ");
+}
+
+#[test]
+fn retain_works() {
+    let mut s = String::from("Hello, world! I am Gregory.");
+    s.retain(|ch| ch != ' ');
+    assert_eq!(&s, "Hello,world!IamGregory.")
+}
+
+#[test]
+fn pop_works() {
+    let mut s = String::from("Hi!");
+    assert_eq!(Some('!'), s.pop());
+    assert_eq!(Some('i'), s.pop());
+    assert_eq!(Some('H'), s.pop());
+    assert_eq!(None, s.pop());
+}
+
+#[test]
+fn push_works() {
+    let mut s = String::from("Hello, world");
+    s.push('!');
+    assert_eq!(&s, "Hello, world!");
+
+    let mut s = String::from("こんにちは世界");
+    s.push('！');
+    assert_eq!(&s, "こんにちは世界！")
+}
+
+#[test]
+fn boost_coverage() {
+    let s = String::new();
+    assert!(s.is_short());
+    assert_eq!(s.capacity(), ShortString::MAX_CAPACITY);
 }

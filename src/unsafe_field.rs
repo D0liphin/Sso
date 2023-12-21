@@ -134,121 +134,121 @@ where
     fn get_mut(&mut self) -> NonNull<T>;
 }
 
-/// Assign several [`UnsafeField`] 'simultaneously'.
-///
-/// There might be occasions where we cannot assign multiple fields simultaenously by
-/// reconstructing the struct (though this should be done in most cases). In this case, we
-/// can enforce a slightly lesser form of safety, by upholding invariants "only when the struct"
-/// is read from. This pattern guarantees that we cannot get a `&self` in between writes to
-/// fields.
-///
-/// ```rs
-/// unsafe_field::SimultaneousUnsafeAssignment
-///     .with(&mut foo.field_1, 5)
-///     .with(&mut foo.field_2, 10)
-///     .with(&mut foo.field_3, 15)
-///     .set_all();
-/// ```
-///
-/// # Safety
-///
-/// - ensure that all invariants are upheld after all assignments are complete
-/// - you must not rely on the ordering of the assignments, that is, the Unit state should
-///   be the same no matter the order of the assignments. This should be trivially verifiable,
-///   since I'm pretty sure it's impossible. Just putting it in here in case someon can find
-///   a way of doing this.
-///
-/// # Implementation Notes
-///
-/// This is possible to implement without storing references to the fields, but I don't think it
-/// should matter in the Unit. This is probably optimised to the same thing? Not sure though.
-/// I don't think it matters that much.
-///
-/// There's probably some kind of way of doing this with pure functions that inlines functions
-/// more aggressively, as well.
-pub struct SimultaneousUnsafeAssignment;
+// /// Assign several [`UnsafeField`] 'simultaneously'.
+// ///
+// /// There might be occasions where we cannot assign multiple fields simultaenously by
+// /// reconstructing the struct (though this should be done in most cases). In this case, we
+// /// can enforce a slightly lesser form of safety, by upholding invariants "only when the struct"
+// /// is read from. This pattern guarantees that we cannot get a `&self` in between writes to
+// /// fields.
+// ///
+// /// ```rs
+// /// unsafe_field::SimultaneousUnsafeAssignment
+// ///     .with(&mut foo.field_1, 5)
+// ///     .with(&mut foo.field_2, 10)
+// ///     .with(&mut foo.field_3, 15)
+// ///     .set_all();
+// /// ```
+// ///
+// /// # Safety
+// ///
+// /// - ensure that all invariants are upheld after all assignments are complete
+// /// - you must not rely on the ordering of the assignments, that is, the Unit state should
+// ///   be the same no matter the order of the assignments. This should be trivially verifiable,
+// ///   since I'm pretty sure it's impossible. Just putting it in here in case someon can find
+// ///   a way of doing this.
+// ///
+// /// # Implementation Notes
+// ///
+// /// This is possible to implement without storing references to the fields, but I don't think it
+// /// should matter in the Unit. This is probably optimised to the same thing? Not sure though.
+// /// I don't think it matters that much.
+// ///
+// /// There's probably some kind of way of doing this with pure functions that inlines functions
+// /// more aggressively, as well.
+// struct SimultaneousUnsafeAssignment;
 
-impl SimultaneousUnsafeAssignment {
-    pub fn with<'b, Dst: UnsafeAssign<T>, T>(
-        self,
-        value: T,
-        dst: &'b mut Dst,
-    ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, Dst, T>> {
-        DeferredSimultaneousUnsafeAssignment {
-            first: self,
-            second: DeferredUnsafeAssignment { field: dst, value },
-        }
-    }
-}
+// impl SimultaneousUnsafeAssignment {
+//     fn with<'b, Dst: UnsafeAssign<T>, T>(
+//         self,
+//         value: T,
+//         dst: &'b mut Dst,
+//     ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, Dst, T>> {
+//         DeferredSimultaneousUnsafeAssignment {
+//             first: self,
+//             second: DeferredUnsafeAssignment { field: dst, value },
+//         }
+//     }
+// }
 
-impl SimultaneousUnsafeAssign for SimultaneousUnsafeAssignment {
-    unsafe fn set_all(self) {}
-}
+// impl SimultaneousUnsafeAssign for SimultaneousUnsafeAssignment {
+//     unsafe fn set_all(self) {}
+// }
 
-pub trait SimultaneousUnsafeAssign {
-    /// Complete all assignments that have been deferred 'simultaneously'. This is not actually
-    /// simultaneous, but ensures that all values are assigned, without the struct they are a
-    /// part of being read in an invalid state
-    ///
-    /// # Safety
-    /// - ensure that all invariants are upheld after all assignments are complete
-    unsafe fn set_all(self);
-}
+// trait SimultaneousUnsafeAssign {
+//     /// Complete all assignments that have been deferred 'simultaneously'. This is not actually
+//     /// simultaneous, but ensures that all values are assigned, without the struct they are a
+//     /// part of being read in an invalid state
+//     ///
+//     /// # Safety
+//     /// - ensure that all invariants are upheld after all assignments are complete
+//     unsafe fn set_all(self);
+// }
 
-pub struct DeferredSimultaneousUnsafeAssignment<
-    First: SimultaneousUnsafeAssign,
-    Second: SimultaneousUnsafeAssign,
-> {
-    first: First,
-    second: Second,
-}
+// struct DeferredSimultaneousUnsafeAssignment<
+//     First: SimultaneousUnsafeAssign,
+//     Second: SimultaneousUnsafeAssign,
+// > {
+//     first: First,
+//     second: Second,
+// }
 
-impl<First: SimultaneousUnsafeAssign, Second: SimultaneousUnsafeAssign>
-    DeferredSimultaneousUnsafeAssignment<First, Second>
-{
-    pub fn with<'b, Dst: UnsafeAssign<T>, T>(
-        self,
-        value: T,
-        dst: &'b mut Dst,
-    ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, Dst, T>> {
-        DeferredSimultaneousUnsafeAssignment {
-            first: self,
-            second: DeferredUnsafeAssignment { field: dst, value },
-        }
-    }
-}
+// impl<First: SimultaneousUnsafeAssign, Second: SimultaneousUnsafeAssign>
+//     DeferredSimultaneousUnsafeAssignment<First, Second>
+// {
+//     pub fn with<'b, Dst: UnsafeAssign<T>, T>(
+//         self,
+//         value: T,
+//         dst: &'b mut Dst,
+//     ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, Dst, T>> {
+//         DeferredSimultaneousUnsafeAssignment {
+//             first: self,
+//             second: DeferredUnsafeAssignment { field: dst, value },
+//         }
+//     }
+// }
 
-impl<'a, First: SimultaneousUnsafeAssign, Second: SimultaneousUnsafeAssign> SimultaneousUnsafeAssign
-    for DeferredSimultaneousUnsafeAssignment<First, Second>
-{
-    unsafe fn set_all(self) {
-        self.first.set_all();
-        self.second.set_all();
-    }
-}
+// impl<'a, First: SimultaneousUnsafeAssign, Second: SimultaneousUnsafeAssign> SimultaneousUnsafeAssign
+//     for DeferredSimultaneousUnsafeAssignment<First, Second>
+// {
+//     unsafe fn set_all(self) {
+//         self.first.set_all();
+//         self.second.set_all();
+//     }
+// }
 
-pub struct DeferredUnsafeAssignment<'a, Dst: UnsafeAssign<T>, T> {
-    field: &'a mut Dst,
-    value: T,
-}
+// pub struct DeferredUnsafeAssignment<'a, Dst: UnsafeAssign<T>, T> {
+//     field: &'a mut Dst,
+//     value: T,
+// }
 
-impl<'a, Dst: UnsafeAssign<T>, T> DeferredUnsafeAssignment<'a, Dst, T> {
-    pub fn with<'b, UDst: UnsafeAssign<U>, U>(
-        self,
-        value: U,
-        dst: &'b mut UDst,
-    ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, UDst, U>> {
-        DeferredSimultaneousUnsafeAssignment {
-            first: self,
-            second: DeferredUnsafeAssignment { field: dst, value },
-        }
-    }
-}
+// impl<'a, Dst: UnsafeAssign<T>, T> DeferredUnsafeAssignment<'a, Dst, T> {
+//     pub fn with<'b, UDst: UnsafeAssign<U>, U>(
+//         self,
+//         value: U,
+//         dst: &'b mut UDst,
+//     ) -> DeferredSimultaneousUnsafeAssignment<Self, DeferredUnsafeAssignment<'b, UDst, U>> {
+//         DeferredSimultaneousUnsafeAssignment {
+//             first: self,
+//             second: DeferredUnsafeAssignment { field: dst, value },
+//         }
+//     }
+// }
 
-impl<'a, Dst: UnsafeAssign<T>, T> SimultaneousUnsafeAssign
-    for DeferredUnsafeAssignment<'a, Dst, T>
-{
-    unsafe fn set_all(self) {
-        self.field.set(self.value);
-    }
-}
+// impl<'a, Dst: UnsafeAssign<T>, T> SimultaneousUnsafeAssign
+//     for DeferredUnsafeAssignment<'a, Dst, T>
+// {
+//     unsafe fn set_all(self) {
+//         self.field.set(self.value);
+//     }
+// }
