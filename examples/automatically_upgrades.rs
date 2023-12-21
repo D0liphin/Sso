@@ -1,4 +1,4 @@
-use sso::String;
+use olis_string::String;
 
 #[cfg(all(target_endian = "little", target_pointer_width = "64"))]
 fn main() {

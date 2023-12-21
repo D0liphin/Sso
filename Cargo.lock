@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "sso"
+name = "olis_string"
 version = "0.1.0"
