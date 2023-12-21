@@ -2,6 +2,8 @@
 name = "sso"
 version = "0.1.0"
 edition = "2021"
+description = "Small-string optimization for Rust, aims to replace std::string::String"
+license = "MIT"
 
 [features]
 default = ["nightly"]
