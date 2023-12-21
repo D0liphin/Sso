@@ -168,8 +168,6 @@ impl ShortString64 {
         unsafe {
             let raw = self.buf.get_mut().cast::<u8>().as_ptr();
             // SAFETY: raw is non-null because it is 'within' a valid allocation 
-            // UNSOUND: this could technically reach the end of the address space on some kind of 
-            // weird future architecture, but this is basically impossible. 
             NonNull::new_unchecked(raw.add(self.len()))
         }
     }
