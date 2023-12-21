@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"lib":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/borrow/trait.Borrow.html\" title=\"trait core::borrow::Borrow\">Borrow</a>&lt;<a class=\"struct\" href=\"lib/struct.SsoStr.html\" title=\"struct lib::SsoStr\">SsoStr</a>&gt; for <a class=\"union\" href=\"lib/union.SsoString.html\" title=\"union lib::SsoString\">SsoString</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

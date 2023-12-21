@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["DeferredSimultaneousUnsafeAssignment","DeferredUnsafeAssignment","SimultaneousUnsafeAssignment","UnsafeField"],"trait":["SimultaneousUnsafeAssign","UnsafeAssign"]};

@@ -1,0 +1,201 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="`SsoString` in Rust"><title>lib - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-804b98a1284a310a.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="lib" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0-nightly (f704f3b93 2023-12-19)" data-channel="nightly" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../lib/index.html">lib</a></h2></div><div class="sidebar-elems"><ul class="block">
+            <li><a id="all-types" href="all.html">All Items</a></li></ul><section><ul class="block"><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#types">Type Aliases</a></li><li><a href="#unions">Unions</a></li></ul></section></div></nav><div class="sidebar-resizer"></div>
+    <main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../lib/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Crate <a class="mod" href="#">lib</a><button id="copy-path" title="Copy item path to clipboard"><img src="../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../src/lib/lib.rs.html#1-1050">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="ssostring-in-rust"><a href="#ssostring-in-rust"><code>SsoString</code> in Rust</a></h2>
+<p>Small string optimisation for Rust. This is currently only available on nightly, since 
+<code>allocator_api</code> is not stable. The hope is that it… will be? Soon… I hope. If I ever decide to
+use this crate for something that requires stable Rust, I will add stable support.</p>
+<p>Small string optimisation is done only for strings of length 23 or less. The goal is for this to
+be a drop in replacement for <code>std::string::String</code>.</p>
+<p>Small string optimisation is only available on
+<code>#[cfg(all(target_endian = &quot;little&quot;, target_pointer_width = &quot;64&quot;))]</code>. Otherwise, <code>sso::String</code> is
+just an alias for <code>std::string::String</code>.</p>
+<p>I am in the process of implementing every <code>std::string::String</code> method for <code>sso::SsoString</code>, there
+are declarations for every method, but most of them are just <code>todo_impl!()</code>s. One method, 
+<code>as_mut_vec</code> is impossible… but who uses that anyway? </p>
+<p>All the methods I think are useful are implemented.</p>
+<h2 id="can-i-use-this"><a href="#can-i-use-this">Can I use this?</a></h2>
+<p>This is an imaginary conversation I am having with a person who will never exist, but I would
+recommend strongly that you do not use this, unless perhaps you can guarantee that the exported type
+is actually <code>std::string::String</code> hehe.</p>
+<p>But seriously, although tested a little, it’s not rigorously safe yet. Once I add debug assertions
+about unsafe preconditions, I’ll be more confident that it is safe to use.</p>
+<p>For now, everything <em>appears</em> to be safe, but nothing is as it seems in the land of <code>unsafe</code>!</p>
+<h3 id="usage"><a href="#usage">Usage</a></h3><h4 id="basic-string-operations"><a href="#basic-string-operations">Basic String Operations</a></h4>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>sso::String;
+
+<span class="kw">let </span><span class="kw-2">mut </span>s = String::new();
+s += <span class="string">"Hello, world!"</span>;
+<span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>s, <span class="string">"Hello, world!"</span>);
+
+<span class="kw">let </span>exclamation_mark = s.pop();
+<span class="macro">assert_eq!</span>(exclamation_mark, <span class="prelude-val">Some</span>(<span class="string">'!'</span>));</code></pre></div>
+<h5 id="automatic-upgrading-between-string-types"><a href="#automatic-upgrading-between-string-types">Automatic Upgrading between String Types</a></h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>sso::String;
+
+<span class="kw">let </span><span class="kw-2">mut </span>s = String::from(<span class="string">"Hello, world!"</span>);
+<span class="macro">assert!</span>(s.is_short());
+<span class="macro">assert!</span>(!s.is_long());
+<span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>s, <span class="string">"Hello, world!"</span>);
+
+s += <span class="string">" My name is Gregory :)"</span>;
+<span class="macro">assert!</span>(s.is_long());
+<span class="macro">assert!</span>(!s.is_short());
+<span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>s, <span class="string">"Hello, world! My name is Gregory :)"</span>);</code></pre></div>
+<p>Use of <code>is_short()</code> and <code>is_long()</code> functions should be prefaced with the following conditionl
+compilation options:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[cfg(all(target_endian = <span class="string">"little"</span>, target_pointer_width = <span class="string">"64"</span>))]</span></code></pre></div>
+<h5 id="matching-internals"><a href="#matching-internals">Matching Internals</a></h5>
+<p><code>sso::String</code> is best for code that doesn’t do a lot of mutating. If you have a lot of mutations
+and don’t want to branch, you can match the internal string. For example</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>sso::String;
+
+<span class="kw">let </span>s = String::new();
+<span class="comment">// upgrade this string, note that any additional capacity will upgrade this string, because the 
+// minimum capacity is 23.
+</span>s.reserve(<span class="number">100</span>); 
+<span class="attr">#[cfg(all(target_endian = <span class="string">"little"</span>, target_pointer_width = <span class="string">"64"</span>))]
+</span>{
+    <span class="macro">assert!</span>(s.is_long());
+    <span class="kw">match </span>s.tagged_mut() {
+        TaggedSsoString64Mut::Long(long) =&gt; {
+            <span class="kw">for _ in </span><span class="number">0</span>..<span class="number">1000 </span>{
+                long.push_str(<span class="string">"something"</span>);
+            }
+        }
+        TaggedSsoString64Mut::Short(..) =&gt; <span class="macro">unreachable!</span>(),
+    }
+}
+<span class="attr">#[cfg(not(all(target_endian = <span class="string">"little"</span>, target_pointer_width = <span class="string">"64"</span>)))]
+</span>{ <span class="macro">unimplemented!</span>() }</code></pre></div>
+<p>This is a bad idea though. The API is unstable and it’s no long replaceable by <code>std::string::String</code>
+on non-optimized architectures.</p>
+<h3 id="why-is-your-code-weird"><a href="#why-is-your-code-weird">Why is your code weird?</a></h3>
+<p>A longer explanation to come. The idea is to uphold the invariants of the struct <strong>at all times</strong>,
+instead of just when they might actually cause UB. Basically, trying to make <code>unsafe</code> code really,
+really simple to prove safety.</p>
+<p>That’s why all my code has <code># Safety</code> contracts and <code>SAFETY:</code> contract clearances at every <code>unsafe</code>
+call-site (I think).</p>
+<p>It’s also why I use <code>len: UnsafeWrite&lt;usize, 0&gt;</code>. So that I cannot accidentally set the length to an
+invalid value without using <code>unsafe</code>, which reminds me to clear the safety contract i might be
+violating.</p>
+<p>And why I can’t <code>impl Drop</code>, because otherwise a semantically simultaneous write (not realy true,
+but it’s good enough) is impossible for <code>capacity</code> and <code>buf</code>. E.g. this code would become impossible
+(I need to write both <code>capacity</code> and <code>buf</code> ‘at the same time’, so that <code>LongString</code> is never
+invalid.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// free the buffer of this string, setting the `len` and `capacity` to `0`
+</span><span class="kw">pub fn </span>free(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">let </span>capacity = <span class="self">self</span>.capacity();
+    <span class="kw-2">*</span><span class="self">self </span>= <span class="kw">unsafe </span>{
+        <span class="self">Self </span>{
+            <span class="comment">// SAFETY: 0 always satisfies len's invaraints
+            </span>len: UnsafeWrite::new(<span class="number">0</span>),
+            <span class="comment">// SAFETY: the buffer is dangling and the capacity is 0, which is a valid
+            // state for LongString
+            </span>capacity: UnsafeWrite::new(<span class="number">0</span>),
+            buf: UnsafeWrite::new(
+                <span class="self">self</span>.buf
+                    .own()
+                    <span class="comment">// SAFETY: capacity is the exact size of the buffer
+                    </span>.dealloc(capacity)
+                    .expect(<span class="string">"should be the exact capacity"</span>),
+            ),
+        }
+    };
+}</code></pre></div>
+<h2 id="item-scoped-unsafe-code"><a href="#item-scoped-unsafe-code">Item-scoped Unsafe Code</a></h2>
+<p>This document is a first? draft. Things might not be worded as accurately as I would like, but I am
+trying my best!</p>
+<h3 id="axiomatically-unsafe-operations"><a href="#axiomatically-unsafe-operations">Axiomatically Unsafe Operations</a></h3>
+<p>Rust defines “the only things that you can do in unsafe code” as (reordered):</p>
+<ul>
+<li>Dereference a raw pointer</li>
+<li>Access or modify a mutable static variable</li>
+<li>Access fields of unions</li>
+<li>Call an unsafe function or method</li>
+<li>Implement an unsafe trait</li>
+</ul>
+<p>This definition is accurate, but it’s more from a code semantics perspective, as opposed to a
+soundness perspective. When I say that something is “axiomatically unsafe”, that means that it can
+<em>never</em> be a safe operation without first checking preconditions.</p>
+<p>For examlpe “calling an unsafe function or method” is not axiomatically unsafe, since you can prove
+soundness without checking any preconditions.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// # Safety
+/// always safe
+</span><span class="kw">unsafe fn </span>puts(s: <span class="kw-2">&amp;</span>str) {
+    <span class="macro">println!</span>(<span class="string">"{}"</span>, s);
+}
+
+<span class="comment">// SAFETY: always safe
+</span><span class="kw">unsafe </span>{
+    puts(<span class="string">"Hello, world!"</span>);
+}</code></pre></div>
+<p>I can prove this program is sound, without checking any preconditions. It is always sound to call
+<code>puts</code>, in any form. Therefore although it is “unsafe” to call <code>puts</code>, it is <em>never unsound</em>. That
+is to say: there is no way I can invoke undefined behaviour with a call to <code>puts</code> in an otherwise
+safe environment.</p>
+<p>This is not the case for what I would call “axiomatically unsafe operations”. For example,
+dereferencing a raw pointer always has a safety contract. We couuld define this as a function
+(though it’s not really) with a safety contract, but we could not define it as a function <em>without</em>
+a safety contract, without that being unsound.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// # Safety
+/// - pointer is non-null
+/// - pointer must be within the bounds of the allocated object
+/// - the object must not have been deallocated (this is different from never having been
+///   allocated. e.g. dereferencing a `NonNull::&lt;ZST&gt;::dangling()` is fine)
+/// -
+</span><span class="kw">unsafe fn </span>deref&lt;T&gt;(<span class="kw-2">*const </span>T) -&gt; T;</code></pre></div>
+<p>There are ways we could restrict <code>T</code>, such that this operation would be valid, but that would be a
+different operation.</p>
+<p>Basically all compiler intrinsic unsafe functions are “axiomatically unsafe”. For example,
+<code>std::intrinsics::offset&lt;Ptr, Delta&gt;(Ptr, Delta)</code> as on operation cannot be defined without a safety
+contract. However the safety contract that rust defines for this operation, is slightly different in
+its scope.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Note: in reality, the type of `Ptr` is enforced by the compiler when we use stabilized 
+/// methods. So we ignore this. 
+/// 
+/// # Safety 
+/// - `Ptr` and `Ptr + Delta` must be either in bounds or one byte past the end of an allocated 
+/// object 
+/// - if the following invariants are not upheld, further use of the returned value will result in 
+///  undefined behavior: 
+///  - `Ptr` and `Ptr + Delta` must be within bounds (isize::MAX) 
+///  - `Ptr + Delta` must not overflow unsafe fn
+</span><span class="kw">fn </span>offset&lt;Ptr, Delta&gt;(Ptr, Delta) -&gt; Ptr;</code></pre></div>
+<p><strong>Important-ish note:</strong> I’m actually very much unsure what these docs mean. The actual notes in
+<code>core</code> are</p>
+<blockquote>
+<p>any further use of the returned value will result in undefined behavior</p>
+</blockquote>
+<p>So is <code>offset(ptr, usize::MAX)</code> safe? It shouldn’t produce a pointer that is out of the allocated
+object if overflow is allowed, but I don’t see why they wouldn’t enforce the same rules as
+<code>unchecked_add</code> here. For the purposes of this theoretical point, I will assume that overflow works
+as you would expect.</p>
+<p>So, we can read this as “it’s not undefined behavior, but using the value afterwards <em>is</em>”. This
+makes it considerably different from the previous safety contract. Here, I can prove a call to this
+function is sound, but I might not be able to prove that my whole program is sound after this:</p>
+<div class="example-wrap"><pre class="language-rs"><code>let n: *const i32 = alloc::&lt;i32&gt;();
+if random::&lt;bool&gt;() {
+    // assignment is (probably) unsound actually...
+    n = unsafe {
+        // sound operation
+        offset(n, usize::MAX);
+    };
+}
+// unsound. Maybe UB, who knows?
+println!({n:?});
+</code></pre></div>
+<p>We could structure the code differently and check if we invalidated the pointer every single time we
+want to ‘use’ it. However, the point of this document is to prove that this kind of safety contract
+is <em>never</em> (well, almost never) required. We can do everything at what I call “item-scope” (with the
+addition of <code>unsafe</code> fields, or the the allowance of a few exceptions to the rule, that we can
+provide in a library).</p>
+<h3 id="what-is-item-scope"><a href="#what-is-item-scope">What is Item-scope?</a></h3>
+<p>not written this bit yet.</p>
+</div></details><h2 id="modules" class="section-header"><a href="#modules">Modules</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="unsafe_field/index.html" title="mod lib::unsafe_field">unsafe_field</a></div></li></ul><h2 id="macros" class="section-header"><a href="#macros">Macros</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.duck_impl.html" title="macro lib::duck_impl">duck_impl</a></div></li><li><div class="item-name"><a class="macro" href="macro.never_impl.html" title="macro lib::never_impl">never_impl</a></div></li><li><div class="item-name"><a class="macro" href="macro.todo_impl.html" title="macro lib::todo_impl">todo_impl</a></div></li></ul><h2 id="structs" class="section-header"><a href="#structs">Structs</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.InvalidArgumentError.html" title="struct lib::InvalidArgumentError">InvalidArgumentError</a></div></li><li><div class="item-name"><a class="struct" href="struct.LongString.html" title="struct lib::LongString">LongString</a></div></li><li><div class="item-name"><a class="struct" href="struct.RawBuf.html" title="struct lib::RawBuf">RawBuf</a></div></li><li><div class="item-name"><a class="struct" href="struct.ShortString64.html" title="struct lib::ShortString64">ShortString64</a></div></li><li><div class="item-name"><a class="struct" href="struct.SsoStr.html" title="struct lib::SsoStr">SsoStr</a></div><div class="desc docblock-short">A wrapper around <code>str</code>, so that we can implement <code>ToOwned</code> where <code>ToOwned::Owned</code> is
+<code>sso::String</code></div></li></ul><h2 id="enums" class="section-header"><a href="#enums">Enums</a></h2><ul class="item-table"><li><div class="item-name"><a class="enum" href="enum.TaggedSsoString64.html" title="enum lib::TaggedSsoString64">TaggedSsoString64</a></div></li><li><div class="item-name"><a class="enum" href="enum.TaggedSsoString64Mut.html" title="enum lib::TaggedSsoString64Mut">TaggedSsoString64Mut</a></div></li></ul><h2 id="types" class="section-header"><a href="#types">Type Aliases</a></h2><ul class="item-table"><li><div class="item-name"><a class="type" href="type.Str.html" title="type lib::Str">Str</a></div></li><li><div class="item-name"><a class="type" href="type.String.html" title="type lib::String">String</a></div></li></ul><h2 id="unions" class="section-header"><a href="#unions">Unions</a></h2><ul class="item-table"><li><div class="item-name"><a class="union" href="union.SsoString.html" title="union lib::SsoString">SsoString</a></div></li></ul></section></div></main></body></html>

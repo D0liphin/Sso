@@ -1,8 +1,10 @@
 # `SsoString` in Rust
 
-Small string optimisation for Rust. This is currently only available on nightly, since 
-`allocator_api` is not stable. The hope is that it... will be? Soon... I hope. If I ever decide to
-use this crate for something that requires stable Rust, I will add stable support.
+Small string optimisation for Rust. This works with both the new `allocator_api` and the old 
+`GlobalAlloc` style allocation. If you want to use the new `allocator_api` set the `nightly` feature
+to be active.
+
+**Note that this does not mean, `SsoString` is generic over a global allocator yet, sadly.**
 
 Small string optimisation is done only for strings of length 23 or less. The goal is for this to
 be a drop in replacement for `std::string::String`.

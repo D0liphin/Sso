@@ -105,7 +105,7 @@ pub struct ShortString64 {
 }
 
 impl ShortString64 {
-    const MAX_CAPACITY: usize = 23;
+    pub const MAX_CAPACITY: usize = 23;
 
     /// Constructs and empty ShortString64
     pub fn new() -> Self {

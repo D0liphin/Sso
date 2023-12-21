@@ -3,5 +3,9 @@
 version = 3
 
 [[package]]
+name = "docs"
+version = "0.1.0"
+
+[[package]]
 name = "sso"
 version = "0.1.0"
