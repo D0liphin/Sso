@@ -1049,6 +1049,13 @@
 <a href="#1048" id="1048">1048</a>
 <a href="#1049" id="1049">1049</a>
 <a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a>
+<a href="#1057" id="1057">1057</a>
 </pre></div><pre class="rust"><code><span class="attr">#![doc = <span class="macro">include_str!</span>(<span class="string">"../README.md"</span>)]
 #![cfg_attr(feature = <span class="string">"nightly"</span>, feature(allocator_api))]
 
@@ -1070,7 +1077,7 @@
 };
 
 <span class="kw">mod </span>impl_macros;
-<span class="kw">mod </span>unified_alloc;
+<span class="kw">pub mod </span>unified_alloc;
 <span class="kw">pub mod </span>unsafe_field;
 
 <span class="kw">use </span>unsafe_field::{UnsafeAssign, UnsafeField};
@@ -1226,7 +1233,6 @@
     <span class="doccomment">/// # Safety
     /// - `s.len()` must be equal to or less than `self.remaining_capacity()`
     </span><span class="kw">pub unsafe fn </span>push_str_unchecked(<span class="kw-2">&amp;mut </span><span class="self">self</span>, s: <span class="kw-2">&amp;</span>str) {
-        <span class="macro">println!</span>(<span class="string">"{:?}.push_str_unchecked({s:?})"</span>, <span class="self">self</span>.as_str());
         <span class="comment">// SAFETY:
         // - src is valid for reads of count s.len(), as it is s
         // - dst is valid for writes of count s.len() as s.len() self.remaining_capacity(), and
@@ -1762,7 +1768,15 @@
         <span class="kw">pub fn </span>as_mut_str(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>str;
     }
 
-    <span class="macro">never_impl!</span>(<span class="kw">pub unsafe fn </span>as_mut_vec(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;);
+    <span class="macro">never_impl! </span>{
+        <span class="doccomment">/// A method with the same name exists on `std::string::String`, but cannot exist on this
+        /// version, as it does not use a vector internally (ever). I don't think this method is 
+        /// good anyway, since it doesn't scope the unsafe behaviour appropriately.
+        /// 
+        /// If you desperately want to use this kind of method, you can simply create `&amp;str`s 
+        /// with unsafe unchecked methods. Probably not needed though, but I won't judge `:o)`
+        </span><span class="kw">pub unsafe fn </span>as_mut_vec(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;;
+    }
 
     <span class="macro">duck_impl! </span>{
         <span class="kw">pub fn </span>as_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str;

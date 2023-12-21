@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["alloc_slice","dealloc_slice","new_slice_layout"]};

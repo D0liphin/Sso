@@ -19,7 +19,7 @@ use std::{
 };
 
 mod impl_macros;
-mod unified_alloc;
+pub mod unified_alloc;
 pub mod unsafe_field;
 
 use unsafe_field::{UnsafeAssign, UnsafeField};
@@ -153,21 +153,21 @@ impl ShortString64 {
         Self::MAX_CAPACITY - self.len()
     }
 
-    /// Returns the next pointer where we should allocate our string. This validates Stacked 
+    /// Returns the next pointer where we should allocate our string. This validates Stacked
     /// Borrows, by using the write access of `self`.
-    /// 
+    ///
     /// # Safety
     /// - the returned pointer is only writable if self.len() < self.capacity()
     /// - you must only write to this pointer if you know it is valid utf8
     pub fn next_ptr(&mut self) -> NonNull<u8> {
-        // SAFETY: 
+        // SAFETY:
         // - no issues with overflow or invalid value as self.len() < Self::MAX_CAPACITY, which is
         //   23.
-        // - ... which is also the size of the buffer, so we're either one past buf, or within 
+        // - ... which is also the size of the buffer, so we're either one past buf, or within
         //   the buffer
         unsafe {
             let raw = self.buf.get_mut().cast::<u8>().as_ptr();
-            // SAFETY: raw is non-null because it is 'within' a valid allocation 
+            // SAFETY: raw is non-null because it is 'within' a valid allocation
             NonNull::new_unchecked(raw.add(self.len()))
         }
     }
@@ -194,7 +194,7 @@ impl ShortString64 {
         if s_len == 0 {
             return;
         }
-        // SAFETY: we truncate s to at most self.remaining_capacity(), therefore s_truncated is 
+        // SAFETY: we truncate s to at most self.remaining_capacity(), therefore s_truncated is
         // <= self.remaining_capacity();
         let s_truncated = &s[0..s_len];
         unsafe {
@@ -655,11 +655,15 @@ impl<'a> From<&'a str> for SsoString {
 #[repr(transparent)]
 pub struct SsoStr(str);
 
-impl ToOwned for Str {
+impl ToOwned for SsoStr {
     type Owned = SsoString;
 
     fn to_owned(&self) -> Self::Owned {
-        todo!()
+        // SAFETY: repr transarent wrapper around a T is always transmutable to that T
+        let s = unsafe { mem::transmute(self) };
+        let mut owned = SsoString::new();
+        owned.push_str(s);
+        owned
     }
 }
 
@@ -712,10 +716,10 @@ impl SsoString {
 
     never_impl! {
         /// A method with the same name exists on `std::string::String`, but cannot exist on this
-        /// version, as it does not use a vector internally (ever). I don't think this method is 
+        /// version, as it does not use a vector internally (ever). I don't think this method is
         /// good anyway, since it doesn't scope the unsafe behaviour appropriately.
-        /// 
-        /// If you desperately want to use this kind of method, you can simply create `&str`s 
+        ///
+        /// If you desperately want to use this kind of method, you can simply create `&str`s
         /// with unsafe unchecked methods. Probably not needed though, but I won't judge `:o)`
         pub unsafe fn as_mut_vec(&mut self) -> &mut Vec<u8>;
     }
