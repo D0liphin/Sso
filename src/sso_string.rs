@@ -653,17 +653,16 @@ impl From<String> for SsoString {
         // otherwise, we need to swap stack values
         let mut value = mem::ManuallyDrop::new(value);
         let long = unsafe {
-            // SAFETY: 
-            // - since `value.len()` is always greater than `0`, we can be sure that it is not 
+            // SAFETY:
+            // - since `value.len()` is always greater than `0`, we can be sure that it is not
             //   dangling or null.
             let ptr = NonNull::new_unchecked(value.as_mut_ptr());
             // SAFETY:
             // - all length and capacity invariants are upheld by `std::string::String`
-            // - RawBuf uses `Global` internally, so handing over `String`'s allocation is just 
+            // - RawBuf uses `Global` internally, so handing over `String`'s allocation is just
             //   fine
             // - ptr has SharedReadWrite provenance.. I think
             LongString::from_raw_parts(ptr, value.len(), value.capacity())
-            
         };
 
         SsoString {
@@ -824,7 +823,9 @@ impl SsoString {
 
     todo_impl!(pub fn from_utf16_lossy(_v: &[u16]) -> SsoString);
 
-    todo_impl!(pub fn from_utf8(_v: Vec<u8>) -> Result<String, FromUtf8Error>);
+    pub fn from_utf8(v: Vec<u8>) -> Result<SsoString, FromUtf8Error> {
+        std::string::String::from_utf8(v).map(|s| s.into())
+    }
 
     todo_impl!(pub fn from_utf8_lossy(_v: &[u8]) -> Cow<'_, SsoStr>);
 

@@ -1,6 +1,6 @@
 [package]
 name = "olis_string"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Small-string optimization for Rust, aims to replace std::string::String"
 license = "MIT"
