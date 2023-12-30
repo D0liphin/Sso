@@ -1096,3 +1096,10 @@ impl Borrow<SsoStr> for SsoString {
         unsafe { mem::transmute(self.as_str()) }
     }
 }
+
+#[macro_export]
+macro_rules! format {
+    ($($arg:tt)*) => {
+        SsoString::from(format!($($arg)*))
+    }
+}
