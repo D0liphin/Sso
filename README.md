@@ -19,6 +19,12 @@ are declarations for every method, but most of them are just `todo_impl!()`s. On
 
 All the methods I think are useful are implemented.
 
+## SAFETY WARNING
+
+I think due to use of `ptr::copy_non_overlapping` on `SsoString::clone`, we actually don't mark
+the region as initalised, causing UB on some internal methods? I'm really not sure though. It only
+happens in `long.as_mut_str().mask_ascii_lowercase()`... I'll have to investigate this more.
+
 # Can I use this?
 
 This is an imaginary conversation I am having with a person who will never exist, but I would

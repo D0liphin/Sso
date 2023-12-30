@@ -6,5 +6,5 @@ description = "Small-string optimization for Rust, aims to replace std::string::
 license = "MIT"
 
 [features]
-default = ["nightly"]
+default = []
 nightly = []

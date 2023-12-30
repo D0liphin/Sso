@@ -4,12 +4,12 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use crate::{RawBuf, SsoStr, TaggedSsoString64Mut};
+use crate::sso_string::{RawBuf, SsoStr, TaggedSsoString64Mut};
 
 type StdString = std::string::String;
-type String = super::SsoString;
-type ShortString = super::ShortString64;
-type LongString = super::LongString;
+type String = crate::sso_string::SsoString;
+type ShortString = crate::sso_string::ShortString64;
+type LongString = crate::sso_string::LongString;
 
 fn assert_aligned<T>(ptr: *const T) {
     assert_eq!(ptr.align_offset(mem::align_of::<T>()), 0)
@@ -162,6 +162,7 @@ fn as_mut_str_works() {
     assert_eq!(s.as_str(), "HELLO, WORLD!");
 
     s.reserve(100);
+    assert_eq!(&s, "HELLO, WORLD!");
     assert!(s.is_long());
     s.as_mut_str().make_ascii_lowercase();
     assert_eq!(s.as_str(), "hello, world!");
@@ -271,4 +272,22 @@ fn boost_coverage() {
     let s = String::new();
     assert!(s.is_short());
     assert_eq!(s.capacity(), ShortString::MAX_CAPACITY);
+}
+
+#[test]
+fn constructable_from_short_std_string() {
+    let stdstr = StdString::from("this is small");
+    assert!(stdstr.len() < ShortString::MAX_CAPACITY);
+    let ssostr = String::from(stdstr);
+    assert_eq!(&ssostr, "this is small");
+    assert!(ssostr.is_short());
+}
+
+#[test]
+fn constructable_from_long_string() {
+    let stdstr = StdString::from("this is a very long string");
+    assert!(stdstr.len() > ShortString::MAX_CAPACITY);
+    let ssostr = String::from(stdstr);
+    assert_eq!(&ssostr, "this is a very long string");
+    assert!(ssostr.is_long());
 }
